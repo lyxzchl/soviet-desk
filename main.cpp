@@ -34,12 +34,10 @@ bool cameraMode = false; // false = orbital, true = FPS
 float orbitalAngle = 0.0f;
 
 // Lighting states
-bool redStarLight = true;
 bool deskLampLight = true;
 bool deskLampLightOn = true;
-float redStarIntensity = 1.0f;
-float starPulseFactor = 0.0f;
-bool starPulseIncreasing = true;
+// Day / Night state
+bool isDaytime = true; // true = sunlight on, lamp off; false = sunlight off, lamp on
 
 // Mouse control for FPS camera
 int lastMouseX = 0;
@@ -58,6 +56,10 @@ GLuint texturePaper = 0;
 GLuint texturePortrait = 0;
 GLuint textureGlass = 0;
 GLuint textureGround = 0;
+GLuint textureWallpaper = 0;
+GLuint textureCarpet = 0;
+GLuint textureCurtains = 0;
+GLuint textureCouch = 0;
 // Colors for Socialist Realism aesthetic
 GLfloat colorRed[4] = {0.7f, 0.1f, 0.1f, 1.0f}; // Soviet Red
 GLfloat colorGold[4] = {0.8f, 0.7f, 0.1f, 1.0f}; // Gold accents
@@ -80,14 +82,23 @@ void drawDesk();
 void drawChair();
 void drawRadio();
 void drawBooks();
-void drawPortrait();
-void drawWindowAndStar();
+void drawWindow();
+void drawSunlight();
 void drawCapAndPapers();
+void drawShelves();
+void drawCurtains();
+void drawDeskLamp();
+void drawDocuments();
+void drawCarpet();
+void drawCouch();
 void loadTextures();
 void createWoodTexture();
 void createPlasterTexture();
 void createPaperTexture();
-void createStarTexture();
+void createWallpaperTexture();
+void createCarpetTexture();
+void createCurtainsTexture();
+void createCouchTexture();
 void createGlassTexture();
 void createGroundTexture();
 void setupLighting();
@@ -122,7 +133,7 @@ int main(int argc, char** argv) {
 // initialization functions
 // ============================================
 void init() {
-    glClearColor(0.05f, 0.05f, 0.05f, 1.0f); // dark gray background
+    glClearColor(0.4f, 0.35f, 0.3f, 1.0f); // warm late afternoon tone
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_LIGHTING);
     glEnable(GL_NORMALIZE);
@@ -141,10 +152,7 @@ void init() {
     // Print controls
     printf("\n=========== CONTROLS ===========\n");
     printf("C - Switch camera mode (Orbital/FPS)\n");
-    printf("L - Toggle desk lamp light\n");
-    printf("R - Toggle red star light\n");
-    printf("P - Pause/resume star animation\n");
-    printf("+/- - Adjust red star intensity\n");
+    printf("L - Toggle Day/Night (Sun <-> Lamp)\n");
     printf("Arrow Keys - Move camera (FPS mode)\n");
     printf("Mouse Drag - Look around (FPS mode)\n");
     printf("ESC - Exit\n");
@@ -160,13 +168,20 @@ void display() {
 
     // Draw the scene
     drawRoom();
+    drawCarpet();
     drawDesk();
     drawChair();
     drawRadio();
     drawBooks();
-    drawPortrait();
-    drawWindowAndStar();
+    //drawPortrait();
+    drawWindow();
+    drawSunlight();
     drawCapAndPapers();
+    drawShelves();
+    drawCurtains();
+    drawDeskLamp();
+    drawDocuments();
+    drawCouch();
 
     // draw axes for debugging
     // drawAxes();
@@ -190,25 +205,6 @@ void timer(int value){
         // update orbital camera angle
         orbitalAngle += 0.5f;
         if (orbitalAngle > 360.0f) orbitalAngle -= 360.0f;
-
-        // update red star pulse
-        if (starPulseIncreasing) {
-            starPulseFactor += 0.02f;
-            if (starPulseFactor >= 1.0f) starPulseIncreasing = false;
-        } else {
-            starPulseFactor -= 0.02f;
-            if (starPulseFactor <= 0.5f) starPulseIncreasing = true;
-        }
-        // Update red star intensity with pulse
-        redStarIntensity = 0.7f + starPulseFactor * 0.3f;
-
-        // Update red star Light if it's on
-        if (redStarLight) {
-            GLfloat redStarDiffuse[] = {redStarIntensity * 0.7f, 0.0f, 0.0f, 1.0f};
-            GLfloat redStarAmbient[] = {redStarIntensity * 0.3f, 0.0f, 0.0f, 1.0f};
-            glLightfv(GL_LIGHT0, GL_DIFFUSE, redStarDiffuse);
-            glLightfv(GL_LIGHT0, GL_AMBIENT, redStarAmbient);
-        }
     }
     glutPostRedisplay();
     glutTimerFunc(16, timer, 0);
@@ -234,55 +230,21 @@ void keyboard(unsigned char key, int x, int y) {
             
         case 'l':
         case 'L':
-            // Toggle desk lamp light
-            deskLampLightOn = !deskLampLightOn;
-            if (deskLampLightOn) {
-                glEnable(GL_LIGHT1);
-                printf("Desk lamp: ON\n");
-            } else {
-                glDisable(GL_LIGHT1);
-                printf("Desk lamp: OFF\n");
-            }
-            break;
-            
-        case 'r':
-        case 'R':
-            // Toggle red star light
-            redStarLight = !redStarLight;
-            if (redStarLight) {
+            // Toggle Day/Night: daytime -> sun on, lamp off; nighttime -> sun off, lamp on
+            isDaytime = !isDaytime;
+            if (isDaytime) {
+                // Daytime: enable sun, disable desk lamp
                 glEnable(GL_LIGHT0);
-                printf("Red Star: ON\n");
+                glDisable(GL_LIGHT1);
+                deskLampLightOn = false;
+                printf("Daytime: SUN ON, Lamp OFF\n");
             } else {
+                // Nighttime: disable sun, enable desk lamp
                 glDisable(GL_LIGHT0);
-                printf("Red Star: OFF\n");
+                glEnable(GL_LIGHT1);
+                deskLampLightOn = true;
+                printf("Nighttime: SUN OFF, Lamp ON\n");
             }
-            break;
-            
-        case 'p':
-        case 'P':
-            // Pause/resume animation
-            animationPaused = !animationPaused;
-            if (animationPaused) {
-                printf("Animation: PAUSED\n");
-            } else {
-                printf("Animation: RESUMED\n");
-            }
-            break;
-            
-        case '+':
-        case '=':
-            // Increase red star intensity
-            redStarIntensity += 0.1f;
-            if (redStarIntensity > 2.0f) redStarIntensity = 2.0f;
-            printf("Red Star intensity: %.1f\n", redStarIntensity);
-            break;
-            
-        case '-':
-        case '_':
-            // Decrease red star intensity
-            redStarIntensity -= 0.1f;
-            if (redStarIntensity < 0.1f) redStarIntensity = 0.1f;
-            printf("Red Star intensity: %.1f\n", redStarIntensity);
             break;
             
         // WASD movement for FPS camera
@@ -374,22 +336,22 @@ void setupLighting(){
     // Enable Lighting
     glEnable(GL_LIGHTING);
 
-    // light 0: red star
-    GLfloat redStarPosition[] = {-1.0f, 0.5f, -1.0f, 0.0f};
-    GLfloat redStarDiffuse[] = {0.7f, 0.0f, 0.0f, 1.0f};
-    GLfloat redStarAmbient[] = {0.3f, 0.0f, 0.0f, 1.0f};
+    // light 0: warm window light (late afternoon sun)
+    GLfloat sunPosition[] = {-1.0f, 2.0f, -1.0f, 0.0f};
+    GLfloat sunDiffuse[] = {0.9f, 0.75f, 0.5f, 1.0f}; // warm golden light
+    GLfloat sunAmbient[] = {0.4f, 0.3f, 0.2f, 1.0f};
 
-    glLightfv(GL_LIGHT0, GL_POSITION, redStarPosition);
-    glLightfv(GL_LIGHT0, GL_DIFFUSE, redStarDiffuse);
-    glLightfv(GL_LIGHT0, GL_AMBIENT, redStarAmbient);
+    glLightfv(GL_LIGHT0, GL_POSITION, sunPosition);
+    glLightfv(GL_LIGHT0, GL_DIFFUSE, sunDiffuse);
+    glLightfv(GL_LIGHT0, GL_AMBIENT, sunAmbient);
     glLightf(GL_LIGHT0, GL_CONSTANT_ATTENUATION, 1.0f);
-    glEnable(GL_LIGHT0);
+    if (isDaytime) glEnable(GL_LIGHT0); else glDisable(GL_LIGHT0);
 
     // Light 1: Desk Lamp (Point Light)
     GLfloat deskLampPosition[] = {0.0f, 2.5f, 0.0f, 1.0f};
-    GLfloat deskLampDiffuse[] = {0.9f, 0.8f, 0.6f, 1.0f};
-    GLfloat deskLampAmbient[] = {0.3f, 0.3f, 0.2f, 1.0f};
-    GLfloat deskLampSpecular[] = {1.0f, 1.0f, 0.8f, 1.0f};
+    GLfloat deskLampDiffuse[] = {1.0f, 0.95f, 0.8f, 1.0f}; // warmer white
+    GLfloat deskLampAmbient[] = {0.4f, 0.4f, 0.3f, 1.0f}; // brighter ambient from lamp
+    GLfloat deskLampSpecular[] = {1.0f, 1.0f, 0.9f, 1.0f};
 
     glLightfv(GL_LIGHT1, GL_POSITION, deskLampPosition);
     glLightfv(GL_LIGHT1, GL_DIFFUSE, deskLampDiffuse);
@@ -398,10 +360,10 @@ void setupLighting(){
     glLightf(GL_LIGHT1, GL_CONSTANT_ATTENUATION, 1.0f);
     glLightf(GL_LIGHT1, GL_LINEAR_ATTENUATION, 0.05f);
     glLightf(GL_LIGHT1, GL_QUADRATIC_ATTENUATION, 0.01f);
-    glEnable(GL_LIGHT1);
+    if (!isDaytime) glEnable(GL_LIGHT1); else glDisable(GL_LIGHT1);
 
-    // Light 2: General ambient light
-    GLfloat globalAmbient[] = {0.1f, 0.1f, 0.1f, 1.0f};
+    // Light 2: General ambient light - brighter for late afternoon
+    GLfloat globalAmbient[] = {0.35f, 0.3f, 0.25f, 1.0f}; // warm overall ambient
     glLightModelfv(GL_LIGHT_MODEL_AMBIENT, globalAmbient);
 
 }
@@ -431,14 +393,28 @@ void loadTextures() {
     // Enable texture mapping
     glEnable(GL_TEXTURE_2D);
     
-    // Generate texture IDs
-    glGenTextures(6, &textureWood); // textureWood gets first ID, others follow
-    
-    // Load textures from files
+    // Generate texture IDs into a local array and assign named variables
+    GLuint texIds[10];
+    glGenTextures(10, texIds);
+    textureWood = texIds[0];
+    texturePlaster = texIds[1];
+    texturePaper = texIds[2];
+    textureWallpaper = texIds[3];
+    textureCarpet = texIds[4];
+    textureCurtains = texIds[5];
+    textureCouch = texIds[6];
+    textureGlass = texIds[7];
+    textureGround = texIds[8];
+    texturePortrait = texIds[9];
+
+    // Load textures from files (each function will bind the named texture ID)
     createWoodTexture();
     createPlasterTexture();
     createPaperTexture();
-    createStarTexture();
+    createWallpaperTexture();
+    createCarpetTexture();
+    createCurtainsTexture();
+    createCouchTexture();
     createGlassTexture();
     createGroundTexture();
     
@@ -478,7 +454,6 @@ void createPlasterTexture() {
         return;
     }
     
-    texturePlaster = textureWood + 1;
     glBindTexture(GL_TEXTURE_2D, texturePlaster);
     
     GLenum format = (channels == 4) ? GL_RGBA : GL_RGB;
@@ -501,7 +476,6 @@ void createPaperTexture() {
         return;
     }
     
-    texturePaper = textureWood + 2;
     glBindTexture(GL_TEXTURE_2D, texturePaper);
     
     GLenum format = (channels == 4) ? GL_RGBA : GL_RGB;
@@ -515,33 +489,6 @@ void createPaperTexture() {
     printf("Paper texture loaded (ID: %d)\n", texturePaper);
 }
 
-void createStarTexture() {
-    int width, height, channels;
-    unsigned char *image = stbi_load("textures/red_star.png", &width, &height, &channels, 4); // Force RGBA
-    
-    if (!image) {
-        printf("Failed to load red_star.png texture\n");
-        return;
-    }
-    
-    texturePortrait = textureWood + 3;
-    glBindTexture(GL_TEXTURE_2D, texturePortrait);
-    
-    // PNG with alpha channel
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, image);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    
-    // Enable alpha blending for this texture
-    glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    
-    stbi_image_free(image);
-    printf("Star texture loaded (ID: %d)\n", texturePortrait);
-}
-
 void createGlassTexture() {
     int width, height, channels;
     unsigned char *image = stbi_load("textures/glass.jpg", &width, &height, &channels, 0);
@@ -551,7 +498,6 @@ void createGlassTexture() {
         return;
     }
     
-    textureGlass = textureWood + 4;
     glBindTexture(GL_TEXTURE_2D, textureGlass);
     
     GLenum format = (channels == 4) ? GL_RGBA : GL_RGB;
@@ -574,7 +520,6 @@ void createGroundTexture() {
         return;
     }
     
-    textureGround = textureWood + 5;
     glBindTexture(GL_TEXTURE_2D, textureGround);
     
     GLenum format = (channels == 4) ? GL_RGBA : GL_RGB;
@@ -586,6 +531,116 @@ void createGroundTexture() {
     
     stbi_image_free(image);
     printf("Ground texture loaded (ID: %d)\n", textureGround);
+}
+
+void createWallpaperTexture() {
+    int width, height, channels;
+    unsigned char *image = stbi_load("textures/wallpaper.jpg", &width, &height, &channels, 0);
+    
+    if (!image) {
+        printf("Failed to load wallpaper.jpg texture - using procedural pattern\n");
+        // Create a simple procedural wallpaper pattern if file doesn't exist
+        glBindTexture(GL_TEXTURE_2D, textureWallpaper);
+        
+        // Create a simple beige/cream colored texture with subtle pattern
+        unsigned char wallpaperData[256 * 256 * 3];
+        for(int y = 0; y < 256; y++) {
+            for(int x = 0; x < 256; x++) {
+                int idx = (y * 256 + x) * 3;
+                // Base cream/beige color
+                wallpaperData[idx + 0] = (unsigned char)(200 + (x % 16) * 2);     // Red
+                wallpaperData[idx + 1] = (unsigned char)(190 + (y % 16));         // Green
+                wallpaperData[idx + 2] = (unsigned char)(170 + ((x+y) % 16));     // Blue
+            }
+        }
+        
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 256, 256, 0, GL_RGB, GL_UNSIGNED_BYTE, wallpaperData);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+        
+        printf("Procedural wallpaper texture created (ID: %d)\n", textureWallpaper);
+        return;
+    }
+    
+    glBindTexture(GL_TEXTURE_2D, textureWallpaper);
+    
+    GLenum format = (channels == 4) ? GL_RGBA : GL_RGB;
+    glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, format, GL_UNSIGNED_BYTE, image);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    
+    stbi_image_free(image);
+    printf("Wallpaper texture loaded (ID: %d)\n", textureWallpaper);
+}
+
+void createCarpetTexture() {
+    int width, height, channels;
+    unsigned char *image = stbi_load("textures/carpet.jpg", &width, &height, &channels, 0);
+    
+    if (!image) {
+        printf("Failed to load carpet.jpg texture\n");
+        return;
+    }
+    
+    glBindTexture(GL_TEXTURE_2D, textureCarpet);
+    
+    GLenum format = (channels == 4) ? GL_RGBA : GL_RGB;
+    glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, format, GL_UNSIGNED_BYTE, image);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    
+    stbi_image_free(image);
+    printf("Carpet texture loaded (ID: %d)\n", textureCarpet);
+}
+
+void createCurtainsTexture() {
+    int width, height, channels;
+    unsigned char *image = stbi_load("textures/curtains.jpg", &width, &height, &channels, 0);
+    
+    if (!image) {
+        printf("Failed to load curtains.jpg texture\n");
+        return;
+    }
+    
+    glBindTexture(GL_TEXTURE_2D, textureCurtains);
+    
+    GLenum format = (channels == 4) ? GL_RGBA : GL_RGB;
+    glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, format, GL_UNSIGNED_BYTE, image);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    
+    stbi_image_free(image);
+    printf("Curtains texture loaded (ID: %d)\n", textureCurtains);
+}
+
+void createCouchTexture() {
+    int width, height, channels;
+    unsigned char *image = stbi_load("textures/couch.jpg", &width, &height, &channels, 0);
+    
+    if (!image) {
+        printf("Failed to load couch.jpg texture\n");
+        return;
+    }
+    
+    glBindTexture(GL_TEXTURE_2D, textureCouch);
+    
+    GLenum format = (channels == 4) ? GL_RGBA : GL_RGB;
+    glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, format, GL_UNSIGNED_BYTE, image);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    
+    stbi_image_free(image);
+    printf("Couch texture loaded (ID: %d)\n", textureCouch);
 }
 
 //================= Room Drawing Functions ===========================
@@ -601,8 +656,8 @@ void drawRoom(){
     glTexCoord2f(0.0f, 4.0f); glVertex3f(-5.0f, 0.0f, 5.0f);
     glEnd();
 
-    // walls - use plaster texture
-    glBindTexture(GL_TEXTURE_2D, texturePlaster);
+    // walls - use wallpaper texture
+    glBindTexture(GL_TEXTURE_2D, textureWallpaper);
     glColor3f(1.0f, 1.0f, 1.0f); // White to show texture colors
     
     // Back wall
@@ -648,7 +703,9 @@ void drawDesk() {
     glBindTexture(GL_TEXTURE_2D, textureWood);
     glColor3f(1.0f, 1.0f, 1.0f); // White to show texture colors
 
-    // desk top
+    float deskThickness = 0.08f; // Added thickness to tabletop
+    
+    // desk top surface (top face)
     glBegin(GL_QUADS);
     glNormal3f(0.0f, 1.0f, 0.0f);
     glTexCoord2f(0.0f, 0.0f); glVertex3f(-2.0f, 1.0f, -1.0f);
@@ -657,12 +714,50 @@ void drawDesk() {
     glTexCoord2f(0.0f, 1.0f); glVertex3f(-2.0f, 1.0f, 1.0f);
     glEnd();
     
+    // desk top bottom face
+    glBegin(GL_QUADS);
+    glNormal3f(0.0f, -1.0f, 0.0f);
+    glTexCoord2f(0.0f, 0.0f); glVertex3f(-2.0f, 1.0f - deskThickness, -1.0f);
+    glTexCoord2f(2.0f, 0.0f); glVertex3f(2.0f, 1.0f - deskThickness, -1.0f);
+    glTexCoord2f(2.0f, 1.0f); glVertex3f(2.0f, 1.0f - deskThickness, 1.0f);
+    glTexCoord2f(0.0f, 1.0f); glVertex3f(-2.0f, 1.0f - deskThickness, 1.0f);
+    glEnd();
+    
+    // desk top edges
+    glBegin(GL_QUADS);
+    // Front edge
+    glNormal3f(0.0f, 0.0f, -1.0f);
+    glTexCoord2f(0.0f, 0.0f); glVertex3f(-2.0f, 1.0f - deskThickness, -1.0f);
+    glTexCoord2f(4.0f, 0.0f); glVertex3f(2.0f, 1.0f - deskThickness, -1.0f);
+    glTexCoord2f(4.0f, 0.08f); glVertex3f(2.0f, 1.0f, -1.0f);
+    glTexCoord2f(0.0f, 0.08f); glVertex3f(-2.0f, 1.0f, -1.0f);
+    // Back edge
+    glNormal3f(0.0f, 0.0f, 1.0f);
+    glVertex3f(-2.0f, 1.0f - deskThickness, 1.0f);
+    glVertex3f(2.0f, 1.0f - deskThickness, 1.0f);
+    glVertex3f(2.0f, 1.0f, 1.0f);
+    glVertex3f(-2.0f, 1.0f, 1.0f);
+    // Left edge
+    glNormal3f(-1.0f, 0.0f, 0.0f);
+    glVertex3f(-2.0f, 1.0f - deskThickness, -1.0f);
+    glVertex3f(-2.0f, 1.0f - deskThickness, 1.0f);
+    glVertex3f(-2.0f, 1.0f, 1.0f);
+    glVertex3f(-2.0f, 1.0f, -1.0f);
+    // Right edge
+    glNormal3f(1.0f, 0.0f, 0.0f);
+    glVertex3f(2.0f, 1.0f - deskThickness, -1.0f);
+    glVertex3f(2.0f, 1.0f - deskThickness, 1.0f);
+    glVertex3f(2.0f, 1.0f, 1.0f);
+    glVertex3f(2.0f, 1.0f, -1.0f);
+    glEnd();
+    
     glColor3fv(colorDarkWood); // Back to color for legs
     // desk legs
     float legWidth = 0.2f;
-    float legHeight = 1.0f;
+    float legDepth = 0.15f;
+    float legHeight = 1.0f - deskThickness;
 
-    // front left leg
+    // front left leg (4 faces for 3D look)
     glBegin(GL_QUADS);
     // Front face
     glNormal3f(0.0f, 0.0f, 1.0f);
@@ -670,60 +765,183 @@ void drawDesk() {
     glVertex3f(-1.8f + legWidth, 0.0f, -0.8f);
     glVertex3f(-1.8f + legWidth, legHeight, -0.8f);
     glVertex3f(-1.8f, legHeight, -0.8f);
+    // Back face
+    glNormal3f(0.0f, 0.0f, -1.0f);
+    glVertex3f(-1.8f, 0.0f, -0.8f + legDepth);
+    glVertex3f(-1.8f + legWidth, 0.0f, -0.8f + legDepth);
+    glVertex3f(-1.8f + legWidth, legHeight, -0.8f + legDepth);
+    glVertex3f(-1.8f, legHeight, -0.8f + legDepth);
+    // Left face
+    glNormal3f(-1.0f, 0.0f, 0.0f);
+    glVertex3f(-1.8f, 0.0f, -0.8f);
+    glVertex3f(-1.8f, 0.0f, -0.8f + legDepth);
+    glVertex3f(-1.8f, legHeight, -0.8f + legDepth);
+    glVertex3f(-1.8f, legHeight, -0.8f);
+    // Right face
+    glNormal3f(1.0f, 0.0f, 0.0f);
+    glVertex3f(-1.8f + legWidth, 0.0f, -0.8f);
+    glVertex3f(-1.8f + legWidth, 0.0f, -0.8f + legDepth);
+    glVertex3f(-1.8f + legWidth, legHeight, -0.8f + legDepth);
+    glVertex3f(-1.8f + legWidth, legHeight, -0.8f);
     glEnd();
 
-    // front right leg
+    // front right leg (4 faces)
     glBegin(GL_QUADS);
+    // Front face
+    glNormal3f(0.0f, 0.0f, 1.0f);
     glVertex3f(1.8f - legWidth, 0.0f, -0.8f);
     glVertex3f(1.8f, 0.0f, -0.8f);
     glVertex3f(1.8f, legHeight, -0.8f);
     glVertex3f(1.8f - legWidth, legHeight, -0.8f);
+    // Back face
+    glNormal3f(0.0f, 0.0f, -1.0f);
+    glVertex3f(1.8f - legWidth, 0.0f, -0.8f + legDepth);
+    glVertex3f(1.8f, 0.0f, -0.8f + legDepth);
+    glVertex3f(1.8f, legHeight, -0.8f + legDepth);
+    glVertex3f(1.8f - legWidth, legHeight, -0.8f + legDepth);
+    // Left face
+    glNormal3f(-1.0f, 0.0f, 0.0f);
+    glVertex3f(1.8f - legWidth, 0.0f, -0.8f);
+    glVertex3f(1.8f - legWidth, 0.0f, -0.8f + legDepth);
+    glVertex3f(1.8f - legWidth, legHeight, -0.8f + legDepth);
+    glVertex3f(1.8f - legWidth, legHeight, -0.8f);
+    // Right face
+    glNormal3f(1.0f, 0.0f, 0.0f);
+    glVertex3f(1.8f, 0.0f, -0.8f);
+    glVertex3f(1.8f, 0.0f, -0.8f + legDepth);
+    glVertex3f(1.8f, legHeight, -0.8f + legDepth);
+    glVertex3f(1.8f, legHeight, -0.8f);
     glEnd();
 
-    // back legs - simplified - just lines
-    glBegin(GL_LINES);
+    // back legs - now with 3D
+    glBegin(GL_QUADS);
+    // Back left leg
+    glNormal3f(0.0f, 0.0f, -1.0f);
     glVertex3f(-1.8f, 0.0f, 0.8f);
+    glVertex3f(-1.8f + legWidth, 0.0f, 0.8f);
+    glVertex3f(-1.8f + legWidth, legHeight, 0.8f);
     glVertex3f(-1.8f, legHeight, 0.8f);
+    // Back right leg
+    glVertex3f(1.8f - legWidth, 0.0f, 0.8f);
     glVertex3f(1.8f, 0.0f, 0.8f);
     glVertex3f(1.8f, legHeight, 0.8f);
+    glVertex3f(1.8f - legWidth, legHeight, 0.8f);
     glEnd();
 }
 
 void drawChair() {
     glColor3fv(colorLightWood);
+    glBindTexture(GL_TEXTURE_2D, textureWood);
+    glColor3f(1.0f, 1.0f, 1.0f);
 
-    // chair seat
+    float seatThickness = 0.06f;
+    float backThickness = 0.05f;
+
+    // chair seat (top and bottom with thickness)
     glBegin(GL_QUADS);
+    // Top face
     glNormal3f(0.0f, 1.0f, 0.0f);
-    glVertex3f(-0.5f, 0.6f, 0.5f);
+    glTexCoord2f(0.0f, 0.0f); glVertex3f(-0.5f, 0.6f, 0.5f);
+    glTexCoord2f(1.0f, 0.0f); glVertex3f(0.5f, 0.6f, 0.5f);
+    glTexCoord2f(1.0f, 1.0f); glVertex3f(0.5f, 0.6f, 1.5f);
+    glTexCoord2f(0.0f, 1.0f); glVertex3f(-0.5f, 0.6f, 1.5f);
+    // Bottom face
+    glNormal3f(0.0f, -1.0f, 0.0f);
+    glVertex3f(-0.5f, 0.6f - seatThickness, 0.5f);
+    glVertex3f(0.5f, 0.6f - seatThickness, 0.5f);
+    glVertex3f(0.5f, 0.6f - seatThickness, 1.5f);
+    glVertex3f(-0.5f, 0.6f - seatThickness, 1.5f);
+    // Front edge
+    glNormal3f(0.0f, 0.0f, -1.0f);
+    glVertex3f(-0.5f, 0.6f - seatThickness, 0.5f);
+    glVertex3f(0.5f, 0.6f - seatThickness, 0.5f);
     glVertex3f(0.5f, 0.6f, 0.5f);
+    glVertex3f(-0.5f, 0.6f, 0.5f);
+    // Back edge
+    glNormal3f(0.0f, 0.0f, 1.0f);
+    glVertex3f(-0.5f, 0.6f - seatThickness, 1.5f);
+    glVertex3f(0.5f, 0.6f - seatThickness, 1.5f);
     glVertex3f(0.5f, 0.6f, 1.5f);
     glVertex3f(-0.5f, 0.6f, 1.5f);
+    // Left edge
+    glNormal3f(-1.0f, 0.0f, 0.0f);
+    glVertex3f(-0.5f, 0.6f - seatThickness, 0.5f);
+    glVertex3f(-0.5f, 0.6f - seatThickness, 1.5f);
+    glVertex3f(-0.5f, 0.6f, 1.5f);
+    glVertex3f(-0.5f, 0.6f, 0.5f);
+    // Right edge
+    glNormal3f(1.0f, 0.0f, 0.0f);
+    glVertex3f(0.5f, 0.6f - seatThickness, 0.5f);
+    glVertex3f(0.5f, 0.6f - seatThickness, 1.5f);
+    glVertex3f(0.5f, 0.6f, 1.5f);
+    glVertex3f(0.5f, 0.6f, 0.5f);
     glEnd();
-    // chair back
+    
+    // chair back (with thickness)
     glBegin(GL_QUADS);
+    // Front face
     glNormal3f(0.0f, 0.0f, -1.0f);
     glVertex3f(-0.5f, 0.6f, 1.5f);
     glVertex3f(0.5f, 0.6f, 1.5f);
     glVertex3f(0.5f, 1.5f, 1.5f);
     glVertex3f(-0.5f, 1.5f, 1.5f);
+    // Back face
+    glNormal3f(0.0f, 0.0f, 1.0f);
+    glVertex3f(-0.5f, 0.6f, 1.5f + backThickness);
+    glVertex3f(0.5f, 0.6f, 1.5f + backThickness);
+    glVertex3f(0.5f, 1.5f, 1.5f + backThickness);
+    glVertex3f(-0.5f, 1.5f, 1.5f + backThickness);
+    // Top edge
+    glNormal3f(0.0f, 1.0f, 0.0f);
+    glVertex3f(-0.5f, 1.5f, 1.5f);
+    glVertex3f(0.5f, 1.5f, 1.5f);
+    glVertex3f(0.5f, 1.5f, 1.5f + backThickness);
+    glVertex3f(-0.5f, 1.5f, 1.5f + backThickness);
+    // Bottom edge
+    glNormal3f(0.0f, -1.0f, 0.0f);
+    glVertex3f(-0.5f, 0.6f, 1.5f);
+    glVertex3f(0.5f, 0.6f, 1.5f);
+    glVertex3f(0.5f, 0.6f, 1.5f + backThickness);
+    glVertex3f(-0.5f, 0.6f, 1.5f + backThickness);
+    // Left edge
+    glNormal3f(-1.0f, 0.0f, 0.0f);
+    glVertex3f(-0.5f, 0.6f, 1.5f);
+    glVertex3f(-0.5f, 1.5f, 1.5f);
+    glVertex3f(-0.5f, 1.5f, 1.5f + backThickness);
+    glVertex3f(-0.5f, 0.6f, 1.5f + backThickness);
+    // Right edge
+    glNormal3f(1.0f, 0.0f, 0.0f);
+    glVertex3f(0.5f, 0.6f, 1.5f);
+    glVertex3f(0.5f, 1.5f, 1.5f);
+    glVertex3f(0.5f, 1.5f, 1.5f + backThickness);
+    glVertex3f(0.5f, 0.6f, 1.5f + backThickness);
     glEnd();
     
-    // Chair legs (simplified)
-    glLineWidth(2.0f);
-    glBegin(GL_LINES);
-    // Front legs
+    // Chair legs (now with thickness)
+    glColor3fv(colorDarkWood);
+    float legThickness = 0.06f;
+    glBegin(GL_QUADS);
+    // Front left leg
     glVertex3f(-0.4f, 0.0f, 0.6f);
+    glVertex3f(-0.4f + legThickness, 0.0f, 0.6f);
+    glVertex3f(-0.4f + legThickness, 0.6f, 0.6f);
     glVertex3f(-0.4f, 0.6f, 0.6f);
+    // Front right leg
+    glVertex3f(0.4f - legThickness, 0.0f, 0.6f);
     glVertex3f(0.4f, 0.0f, 0.6f);
     glVertex3f(0.4f, 0.6f, 0.6f);
-    // Back legs
+    glVertex3f(0.4f - legThickness, 0.6f, 0.6f);
+    // Back left leg
     glVertex3f(-0.4f, 0.0f, 1.4f);
+    glVertex3f(-0.4f + legThickness, 0.0f, 1.4f);
+    glVertex3f(-0.4f + legThickness, 0.6f, 1.4f);
     glVertex3f(-0.4f, 0.6f, 1.4f);
+    // Back right leg
+    glVertex3f(0.4f - legThickness, 0.0f, 1.4f);
     glVertex3f(0.4f, 0.0f, 1.4f);
     glVertex3f(0.4f, 0.6f, 1.4f);
+    glVertex3f(0.4f - legThickness, 0.6f, 1.4f);
     glEnd();
-    glLineWidth(1.0f);
 }
 
 void drawRadio() {
@@ -782,67 +1000,8 @@ void drawBooks() {
     glTexCoord2f(0.0f, 1.0f); glVertex3f(-1.0f, 1.05f, 0.0f);
     glEnd();
 }
-
-void drawPortrait(){
-    // portrait frame on the wall
-    glColor3fv(colorGold);
-
-    // Frame
-    float frameSize = 1.5f;
-    float frameThickness = 0.1f;
-
-
-    // Outer frame
-    glBegin(GL_QUADS);
-    glNormal3f(0.0f, 0.0f, 1.0f);
-    // Top piece
-    glVertex3f(-frameSize/2, 3.0f, -4.99f);
-    glVertex3f(frameSize/2, 3.0f, -4.99f);
-    glVertex3f(frameSize/2, 3.0f + frameThickness, -4.99f);
-    glVertex3f(-frameSize/2, 3.0f + frameThickness, -4.99f);
-    // Bottom piece
-    glVertex3f(-frameSize/2, 2.0f - frameThickness, -4.99f);
-    glVertex3f(frameSize/2, 2.0f - frameThickness, -4.99f);
-    glVertex3f(frameSize/2, 2.0f, -4.99f);
-    glVertex3f(-frameSize/2, 2.0f, -4.99f);
-    // Left piece
-    glVertex3f(-frameSize/2, 2.0f, -4.99f);
-    glVertex3f(-frameSize/2 + frameThickness, 2.0f, -4.99f);
-    glVertex3f(-frameSize/2 + frameThickness, 3.0f, -4.99f);
-    glVertex3f(-frameSize/2, 3.0f, -4.99f);
-    // Right piece
-    glVertex3f(frameSize/2 - frameThickness, 2.0f, -4.99f);
-    glVertex3f(frameSize/2, 2.0f, -4.99f);
-    glVertex3f(frameSize/2, 3.0f, -4.99f);
-    glVertex3f(frameSize/2 - frameThickness, 3.0f, -4.99f);
-    glEnd();
-
-    // Portrait content (simplified hammer and sickle)
-    glColor3fv(colorRed);
-    glLineWidth(3.0f);
-    glBegin(GL_LINES);
-    // Hammer handle
-    glVertex3f(0.0f, 2.3f, -4.98f);
-    glVertex3f(0.3f, 2.6f, -4.98f);
-    // Hammer head
-    glVertex3f(0.4f, 2.5f, -4.98f);
-    glVertex3f(0.2f, 2.7f, -4.98f);
-    // Sickle arc (simplified)
-    for(int i = 0; i < 5; i++) {
-        float angle = M_PI * 0.8f + i * 0.1f;
-        float x1 = -0.2f + 0.2f * cos(angle);
-        float y1 = 2.5f + 0.2f * sin(angle);
-        float x2 = -0.2f + 0.2f * cos(angle + 0.1f);
-        float y2 = 2.5f + 0.2f * sin(angle + 0.1f);
-        glVertex3f(x1, y1, -4.98f);
-        glVertex3f(x2, y2, -4.98f);
-    }
-    glEnd();
-    glLineWidth(1.0f);
-}
-
-void drawWindowAndStar() {
-    // window on left wall
+void drawWindow() {
+    // window on left wall/
     // First draw the glass panes with texture
     glBindTexture(GL_TEXTURE_2D, textureGlass);
     glColor4f(0.9f, 0.9f, 1.0f, 0.7f); // Slightly blue tinted glass with transparency
@@ -913,24 +1072,6 @@ void drawWindowAndStar() {
     glLineWidth(1.0f);
     glEnable(GL_TEXTURE_2D); // Re-enable textures for other objects
 
-    // red star outside window - use star texture
-    if (redStarLight){
-        glBindTexture(GL_TEXTURE_2D, texturePortrait);
-        glColor3f(redStarIntensity, redStarIntensity, redStarIntensity); // Brightness based on intensity
-        glPushMatrix();
-        glTranslatef(-6.0f, 2.5f, 0.0f);
-        
-        // Draw textured quad for star
-        glBegin(GL_QUADS);
-        glNormal3f(0.0f, 0.0f, 1.0f);
-        glTexCoord2f(0.0f, 0.0f); glVertex3f(-0.5f, -0.5f, 0.0f);
-        glTexCoord2f(1.0f, 0.0f); glVertex3f(0.5f, -0.5f, 0.0f);
-        glTexCoord2f(1.0f, 1.0f); glVertex3f(0.5f, 0.5f, 0.0f);
-        glTexCoord2f(0.0f, 1.0f); glVertex3f(-0.5f, 0.5f, 0.0f);
-        glEnd();
-        glPopMatrix();
-    }
-
 }
 
 void drawCapAndPapers() {
@@ -963,6 +1104,516 @@ void drawCapAndPapers() {
         glTexCoord2f(1.0f, 1.0f); glVertex3f(-1.0f + offset, 1.02f, -0.3f + offset);
         glTexCoord2f(0.0f, 1.0f); glVertex3f(-1.5f + offset, 1.02f, -0.3f + offset);
         glEnd();
+    }
+}
+
+void drawSunlight() {
+    if (!isDaytime) return;
+
+    // Draw a simple translucent sunlight shaft entering from the window
+    glPushAttrib(GL_ENABLE_BIT | GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    glDisable(GL_TEXTURE_2D);
+    glDisable(GL_LIGHTING);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glDepthMask(GL_FALSE); // don't write to depth so it blends over scene
+
+    // Warm golden beam color
+    glColor4f(1.0f, 0.85f, 0.45f, 0.25f);
+
+    glBegin(GL_QUADS);
+    // Coordinates form a slanted trapezoid from the window into the room
+    glVertex3f(-4.98f, 3.4f, -0.6f); // near window top-left
+    glVertex3f(-4.98f, 2.0f, 0.6f);  // near window lower-right
+    glVertex3f(-2.0f, 1.0f, 1.8f);   // inner room far corner bottom
+    glVertex3f(-2.0f, 3.2f, -1.8f);  // inner room far corner top
+    glEnd();
+
+    glDepthMask(GL_TRUE);
+    glDisable(GL_BLEND);
+    glEnable(GL_LIGHTING);
+    glEnable(GL_TEXTURE_2D);
+    glPopAttrib();
+}
+
+void drawShelves() {
+    // Wooden shelves on the back wall
+    glBindTexture(GL_TEXTURE_2D, textureWood);
+    glColor3f(1.0f, 1.0f, 1.0f);
+    
+    float shelfDepth = 0.3f;
+    float shelfThickness = 0.08f;  // Increased thickness
+    float shelfWidth = 3.0f;
+    
+    // Three shelves at different heights
+    for(int i = 0; i < 3; i++) {
+        float shelfY = 1.5f + i * 1.0f;
+        float shelfX = -1.5f;
+        
+        // Shelf surface (top and bottom with all edges)
+        glBegin(GL_QUADS);
+        // Top surface
+        glNormal3f(0.0f, 1.0f, 0.0f);
+        glTexCoord2f(0.0f, 0.0f); glVertex3f(shelfX, shelfY, -4.5f);
+        glTexCoord2f(2.0f, 0.0f); glVertex3f(shelfX + shelfWidth, shelfY, -4.5f);
+        glTexCoord2f(2.0f, 0.2f); glVertex3f(shelfX + shelfWidth, shelfY, -4.5f + shelfDepth);
+        glTexCoord2f(0.0f, 0.2f); glVertex3f(shelfX, shelfY, -4.5f + shelfDepth);
+        
+        // Bottom surface
+        glNormal3f(0.0f, -1.0f, 0.0f);
+        glVertex3f(shelfX, shelfY - shelfThickness, -4.5f);
+        glVertex3f(shelfX + shelfWidth, shelfY - shelfThickness, -4.5f);
+        glVertex3f(shelfX + shelfWidth, shelfY - shelfThickness, -4.5f + shelfDepth);
+        glVertex3f(shelfX, shelfY - shelfThickness, -4.5f + shelfDepth);
+        
+        // Front edge
+        glNormal3f(0.0f, 0.0f, -1.0f);
+        glVertex3f(shelfX, shelfY - shelfThickness, -4.5f);
+        glVertex3f(shelfX + shelfWidth, shelfY - shelfThickness, -4.5f);
+        glVertex3f(shelfX + shelfWidth, shelfY, -4.5f);
+        glVertex3f(shelfX, shelfY, -4.5f);
+        
+        // Back edge
+        glNormal3f(0.0f, 0.0f, 1.0f);
+        glVertex3f(shelfX, shelfY - shelfThickness, -4.5f + shelfDepth);
+        glVertex3f(shelfX + shelfWidth, shelfY - shelfThickness, -4.5f + shelfDepth);
+        glVertex3f(shelfX + shelfWidth, shelfY, -4.5f + shelfDepth);
+        glVertex3f(shelfX, shelfY, -4.5f + shelfDepth);
+        
+        // Left edge
+        glNormal3f(-1.0f, 0.0f, 0.0f);
+        glVertex3f(shelfX, shelfY - shelfThickness, -4.5f);
+        glVertex3f(shelfX, shelfY - shelfThickness, -4.5f + shelfDepth);
+        glVertex3f(shelfX, shelfY, -4.5f + shelfDepth);
+        glVertex3f(shelfX, shelfY, -4.5f);
+        
+        // Right edge
+        glNormal3f(1.0f, 0.0f, 0.0f);
+        glVertex3f(shelfX + shelfWidth, shelfY - shelfThickness, -4.5f);
+        glVertex3f(shelfX + shelfWidth, shelfY - shelfThickness, -4.5f + shelfDepth);
+        glVertex3f(shelfX + shelfWidth, shelfY, -4.5f + shelfDepth);
+        glVertex3f(shelfX + shelfWidth, shelfY, -4.5f);
+        glEnd();
+        
+        // Shelf support brackets (now as 3D structures instead of lines)
+        glColor3fv(colorGold);
+        float bracketSize = 0.15f;
+        glDisable(GL_TEXTURE_2D);
+        glBegin(GL_QUADS);
+        // Left bracket
+        glVertex3f(shelfX - bracketSize, shelfY - shelfThickness, -4.5f);
+        glVertex3f(shelfX, shelfY - shelfThickness, -4.5f);
+        glVertex3f(shelfX, shelfY - shelfThickness - bracketSize, -4.5f);
+        glVertex3f(shelfX - bracketSize, shelfY - shelfThickness - bracketSize, -4.5f);
+        
+        // Right bracket
+        glVertex3f(shelfX + shelfWidth, shelfY - shelfThickness, -4.5f);
+        glVertex3f(shelfX + shelfWidth + bracketSize, shelfY - shelfThickness, -4.5f);
+        glVertex3f(shelfX + shelfWidth + bracketSize, shelfY - shelfThickness - bracketSize, -4.5f);
+        glVertex3f(shelfX + shelfWidth, shelfY - shelfThickness - bracketSize, -4.5f);
+        glEnd();
+        glEnable(GL_TEXTURE_2D);
+        
+        glBindTexture(GL_TEXTURE_2D, textureWood);
+        glColor3f(1.0f, 1.0f, 1.0f);
+    }
+    
+    // Add some books/objects on shelves
+    glColor3fv(colorRed);
+    // Small book on first shelf - now with thickness
+    glBegin(GL_QUADS);
+    glNormal3f(0.0f, 0.0f, 1.0f);
+    glVertex3f(-1.2f, 1.51f, -4.45f);
+    glVertex3f(-0.8f, 1.51f, -4.45f);
+    glVertex3f(-0.8f, 1.71f, -4.45f);
+    glVertex3f(-1.2f, 1.71f, -4.45f);
+    // Book side
+    glVertex3f(-1.2f, 1.51f, -4.42f);
+    glVertex3f(-0.8f, 1.51f, -4.42f);
+    glVertex3f(-0.8f, 1.71f, -4.42f);
+    glVertex3f(-1.2f, 1.71f, -4.42f);
+    glEnd();
+    
+    // Another book on second shelf - with thickness
+    glColor3fv(colorGold);
+    glBegin(GL_QUADS);
+    glVertex3f(0.5f, 2.51f, -4.45f);
+    glVertex3f(1.0f, 2.51f, -4.45f);
+    glVertex3f(1.0f, 2.66f, -4.45f);
+    glVertex3f(0.5f, 2.66f, -4.45f);
+    // Book side
+    glVertex3f(0.5f, 2.51f, -4.42f);
+    glVertex3f(1.0f, 2.51f, -4.42f);
+    glVertex3f(1.0f, 2.66f, -4.42f);
+    glVertex3f(0.5f, 2.66f, -4.42f);
+    glEnd();
+}
+
+void drawCurtains() {
+    // Red curtains on left side of window
+    if (textureCurtains == 0) {
+        // No curtain texture loaded, draw simple colored panels
+        glDisable(GL_TEXTURE_2D);
+        glColor3fv(colorRed);
+        glBegin(GL_QUADS);
+        glNormal3f(1.0f, 0.0f, 0.0f);
+        glVertex3f(-4.95f, 1.4f, -2.0f);
+        glVertex3f(-4.95f, 1.4f, -1.0f);
+        glVertex3f(-4.95f, 3.6f, -1.0f);
+        glVertex3f(-4.95f, 3.6f, -2.0f);
+        glEnd();
+        glBegin(GL_QUADS);
+        glVertex3f(-4.95f, 1.4f, 1.0f);
+        glVertex3f(-4.95f, 1.4f, 2.0f);
+        glVertex3f(-4.95f, 3.6f, 2.0f);
+        glVertex3f(-4.95f, 3.6f, 1.0f);
+        glEnd();
+        glEnable(GL_TEXTURE_2D);
+        return;
+    }
+
+    glEnable(GL_TEXTURE_2D);
+    glBindTexture(GL_TEXTURE_2D, textureCurtains);
+    glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+    glColor3f(1.0f, 1.0f, 1.0f); // Ensure texture colors show correctly
+
+    // Subdivide panels into vertical strips to fake folds
+    const int strips = 8;
+    float leftZ0 = -2.0f, leftZ1 = -1.0f;
+    float rightZ0 = 1.0f, rightZ1 = 2.0f;
+    float y0 = 1.4f, y1 = 3.6f;
+    float sRepeat = 2.0f; // how many times texture repeats across width
+
+    // Left panel
+    for (int i = 0; i < strips; ++i) {
+        float t0 = (float)i / strips;
+        float t1 = (float)(i + 1) / strips;
+        float zA = leftZ0 + (leftZ1 - leftZ0) * t0;
+        float zB = leftZ0 + (leftZ1 - leftZ0) * t1;
+        float sA = t0 * sRepeat;
+        float sB = t1 * sRepeat;
+        float offset = 0.02f * sinf(i * 0.7f); // slight x offset to simulate fold
+        float nx = 0.9f + 0.1f * cosf(i * 0.6f);
+        float nz = 0.1f * sinf(i * 0.8f);
+
+        glBegin(GL_QUADS);
+        glNormal3f(nx, 0.0f, nz);
+        glTexCoord2f(sA, 0.0f); glVertex3f(-4.95f + offset, y0, zA);
+        glTexCoord2f(sB, 0.0f); glVertex3f(-4.95f + offset, y0, zB);
+        glTexCoord2f(sB, 1.0f); glVertex3f(-4.95f + offset, y1, zB);
+        glTexCoord2f(sA, 1.0f); glVertex3f(-4.95f + offset, y1, zA);
+        glEnd();
+    }
+
+    // Right panel
+    for (int i = 0; i < strips; ++i) {
+        float t0 = (float)i / strips;
+        float t1 = (float)(i + 1) / strips;
+        float zA = rightZ0 + (rightZ1 - rightZ0) * t0;
+        float zB = rightZ0 + (rightZ1 - rightZ0) * t1;
+        float sA = t0 * sRepeat;
+        float sB = t1 * sRepeat;
+        float offset = 0.02f * sinf(i * 0.9f);
+        float nx = 0.9f + 0.1f * cosf(i * 0.5f);
+        float nz = 0.1f * sinf(i * 0.4f);
+
+        glBegin(GL_QUADS);
+        glNormal3f(nx, 0.0f, nz);
+        glTexCoord2f(sA, 0.0f); glVertex3f(-4.95f + offset, y0, zA);
+        glTexCoord2f(sB, 0.0f); glVertex3f(-4.95f + offset, y0, zB);
+        glTexCoord2f(sB, 1.0f); glVertex3f(-4.95f + offset, y1, zB);
+        glTexCoord2f(sA, 1.0f); glVertex3f(-4.95f + offset, y1, zA);
+        glEnd();
+    }
+    
+    // Curtain rod
+    glColor3fv(colorGold);
+    glLineWidth(3.0f);
+    glBegin(GL_LINES);
+    glVertex3f(-4.94f, 3.7f, -2.0f);
+    glVertex3f(-4.94f, 3.7f, 2.0f);
+    glEnd();
+    glLineWidth(1.0f);
+}
+
+void drawDeskLamp() {
+    // Desk lamp on right side of desk
+    glColor3fv(colorGray);
+    
+    // Lamp base (cylinder)
+    glPushMatrix();
+    glTranslatef(1.5f, 1.0f, 0.3f);
+    glScalef(0.15f, 0.05f, 0.15f);
+    glutSolidCube(1.0f);
+    glPopMatrix();
+    
+    // Lamp post (vertical line)
+    glColor3fv(colorDarkWood);
+    glLineWidth(3.0f);
+    glBegin(GL_LINES);
+    glVertex3f(1.5f, 1.05f, 0.3f);
+    glVertex3f(1.5f, 2.0f, 0.3f);
+    glEnd();
+    glLineWidth(1.0f);
+    
+    // Lamp head (cone shape)
+    glColor3fv(colorRed);
+    glPushMatrix();
+    glTranslatef(1.5f, 2.0f, 0.3f);
+    glRotatef(-90.0f, 1.0f, 0.0f, 0.0f);
+    glutSolidCone(0.2f, 0.3f, 20, 10);
+    glPopMatrix();
+    
+    // Lamp light glow effect if desk lamp is on
+    if (deskLampLightOn) {
+        glColor4f(1.0f, 1.0f, 0.8f, 0.3f);
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE);
+        glPushMatrix();
+        glTranslatef(1.5f, 2.2f, 0.3f);
+        glutSolidSphere(0.3f, 10, 10);
+        glPopMatrix();
+        glDisable(GL_BLEND);
+    }
+}
+
+void drawDocuments() {
+    // Additional documents and papers on desk
+    glBindTexture(GL_TEXTURE_2D, texturePaper);
+    glColor3f(1.0f, 1.0f, 1.0f);
+    
+    // Document stack 1 - right side of desk
+    for(int i = 0; i < 3; i++) {
+        float offset = i * 0.02f;
+        glBegin(GL_QUADS);
+        glNormal3f(0.0f, 1.0f, 0.0f);
+        glTexCoord2f(0.0f, 0.0f); glVertex3f(0.2f + offset, 1.01f + offset, -0.7f + offset);
+        glTexCoord2f(1.0f, 0.0f); glVertex3f(1.2f + offset, 1.01f + offset, -0.7f + offset);
+        glTexCoord2f(1.0f, 1.0f); glVertex3f(1.2f + offset, 1.02f, -0.2f + offset);
+        glTexCoord2f(0.0f, 1.0f); glVertex3f(0.2f + offset, 1.02f, -0.2f + offset);
+        glEnd();
+    }
+    
+    // Document stack 2 - center of desk
+    for(int i = 0; i < 2; i++) {
+        float offset = i * 0.03f;
+        glBegin(GL_QUADS);
+        glNormal3f(0.0f, 1.0f, 0.0f);
+        glTexCoord2f(0.0f, 0.0f); glVertex3f(-1.3f + offset, 1.01f + offset, 0.2f);
+        glTexCoord2f(1.0f, 0.0f); glVertex3f(-0.5f + offset, 1.01f + offset, 0.2f);
+        glTexCoord2f(1.0f, 1.0f); glVertex3f(-0.5f + offset, 1.02f, 0.7f);
+        glTexCoord2f(0.0f, 1.0f); glVertex3f(-1.3f + offset, 1.02f, 0.7f);
+        glEnd();
+    }
+    
+    // Inkwell/pen holder
+    glColor3fv(colorGray);
+    glPushMatrix();
+    glTranslatef(-1.5f, 1.05f, -0.7f);
+    glutSolidCube(0.15f);
+    glPopMatrix();
+    
+    // Pen/pencil
+    glColor3fv(colorGold);
+    glLineWidth(2.0f);
+    glBegin(GL_LINES);
+    glVertex3f(-1.5f, 1.2f, -0.7f);
+    glVertex3f(-1.5f, 1.5f, -0.65f);
+    glEnd();
+    glLineWidth(1.0f);
+}
+
+void drawCarpet() {
+    // Decorative carpet in the center of the room
+    glBindTexture(GL_TEXTURE_2D, textureCarpet);
+    glColor3f(1.0f, 1.0f, 1.0f); // White to show texture colors
+    
+    // Carpet on the floor
+    glBegin(GL_QUADS);
+    glNormal3f(0.0f, 1.0f, 0.0f);
+    glTexCoord2f(0.0f, 0.0f); glVertex3f(-2.5f, 0.01f, -2.0f);
+    glTexCoord2f(2.0f, 0.0f); glVertex3f(2.5f, 0.01f, -2.0f);
+    glTexCoord2f(2.0f, 2.0f); glVertex3f(2.5f, 0.01f, 2.5f);
+    glTexCoord2f(0.0f, 2.0f); glVertex3f(-2.5f, 0.01f, 2.5f);
+    glEnd();
+    
+    // Carpet border (gold trim)
+    glColor3fv(colorGold);
+    glLineWidth(3.0f);
+    glDisable(GL_TEXTURE_2D);
+    glBegin(GL_LINE_LOOP);
+    glVertex3f(-2.5f, 0.02f, -2.0f);
+    glVertex3f(2.5f, 0.02f, -2.0f);
+    glVertex3f(2.5f, 0.02f, 2.5f);
+    glVertex3f(-2.5f, 0.02f, 2.5f);
+    glEnd();
+    glLineWidth(1.0f);
+    glEnable(GL_TEXTURE_2D);
+}
+
+void drawCouch() {
+    // Couch on the right wall - improved 3D design
+    glBindTexture(GL_TEXTURE_2D, textureCouch);
+    glColor3f(1.0f, 1.0f, 1.0f); // White to show texture colors
+    
+    float couchDepth = 0.6f;     // How far it sticks out from wall
+    float seatHeight = 0.4f;
+    float backHeight = 1.0f;
+    float armWidth = 0.25f;
+    float armHeight = 0.5f;
+    
+    // ===== SEAT CUSHION =====
+    glBegin(GL_QUADS);
+    // Top face of seat
+    glNormal3f(0.0f, 1.0f, 0.0f);
+    glTexCoord2f(0.0f, 0.0f); glVertex3f(4.9f - couchDepth, seatHeight, -1.5f);
+    glTexCoord2f(3.0f, 0.0f); glVertex3f(4.9f, seatHeight, -1.5f);
+    glTexCoord2f(3.0f, 1.0f); glVertex3f(4.9f, seatHeight, 1.5f);
+    glTexCoord2f(0.0f, 1.0f); glVertex3f(4.9f - couchDepth, seatHeight, 1.5f);
+    
+    // Front face of seat
+    glNormal3f(0.0f, -1.0f, 0.5f);
+    glTexCoord2f(0.0f, 0.0f); glVertex3f(4.9f - couchDepth, 0.0f, -1.5f);
+    glTexCoord2f(3.0f, 0.0f); glVertex3f(4.9f, 0.0f, -1.5f);
+    glTexCoord2f(3.0f, 0.4f); glVertex3f(4.9f, seatHeight, -1.5f);
+    glTexCoord2f(0.0f, 0.4f); glVertex3f(4.9f - couchDepth, seatHeight, -1.5f);
+    
+    // Back face of seat (where it meets backrest)
+    glNormal3f(0.0f, -0.2f, -1.0f);
+    glVertex3f(4.9f - couchDepth, 0.0f, 1.5f);
+    glVertex3f(4.9f, 0.0f, 1.5f);
+    glVertex3f(4.9f, seatHeight, 1.5f);
+    glVertex3f(4.9f - couchDepth, seatHeight, 1.5f);
+    
+    // Left side of seat
+    glNormal3f(-1.0f, 0.0f, 0.0f);
+    glTexCoord2f(0.0f, 0.0f); glVertex3f(4.9f - couchDepth, 0.0f, -1.5f);
+    glTexCoord2f(0.6f, 0.0f); glVertex3f(4.9f - couchDepth, seatHeight, -1.5f);
+    glTexCoord2f(0.6f, 0.4f); glVertex3f(4.9f - couchDepth, seatHeight, 1.5f);
+    glTexCoord2f(0.0f, 0.4f); glVertex3f(4.9f - couchDepth, 0.0f, 1.5f);
+    
+    // Right side of seat
+    glNormal3f(1.0f, 0.0f, 0.0f);
+    glVertex3f(4.9f, 0.0f, -1.5f);
+    glVertex3f(4.9f, seatHeight, -1.5f);
+    glVertex3f(4.9f, seatHeight, 1.5f);
+    glVertex3f(4.9f, 0.0f, 1.5f);
+    glEnd();
+    
+    // ===== BACKREST (angled) =====
+    glBegin(GL_QUADS);
+    // Top of backrest
+    glNormal3f(0.0f, 1.0f, 0.3f);
+    glTexCoord2f(0.0f, 0.0f); glVertex3f(4.9f - couchDepth * 0.7f, seatHeight + backHeight, -1.5f);
+    glTexCoord2f(3.0f, 0.0f); glVertex3f(4.9f - couchDepth * 0.3f, seatHeight + backHeight, -1.5f);
+    glTexCoord2f(3.0f, 1.0f); glVertex3f(4.9f - couchDepth * 0.3f, seatHeight + backHeight, 1.5f);
+    glTexCoord2f(0.0f, 1.0f); glVertex3f(4.9f - couchDepth * 0.7f, seatHeight + backHeight, 1.5f);
+    
+    // Front face of backrest (against wall side)
+    glNormal3f(0.0f, 0.3f, -1.0f);
+    glVertex3f(4.9f - couchDepth * 0.7f, seatHeight, -1.5f);
+    glVertex3f(4.9f - couchDepth * 0.3f, seatHeight, -1.5f);
+    glVertex3f(4.9f - couchDepth * 0.3f, seatHeight + backHeight, -1.5f);
+    glVertex3f(4.9f - couchDepth * 0.7f, seatHeight + backHeight, -1.5f);
+    
+    // Back face of backrest
+    glNormal3f(0.0f, 0.3f, 1.0f);
+    glVertex3f(4.9f - couchDepth * 0.7f, seatHeight, 1.5f);
+    glVertex3f(4.9f - couchDepth * 0.3f, seatHeight, 1.5f);
+    glVertex3f(4.9f - couchDepth * 0.3f, seatHeight + backHeight, 1.5f);
+    glVertex3f(4.9f - couchDepth * 0.7f, seatHeight + backHeight, 1.5f);
+    
+    // Left side of backrest
+    glNormal3f(-1.0f, 0.3f, 0.0f);
+    glTexCoord2f(0.0f, 0.0f); glVertex3f(4.9f - couchDepth * 0.7f, seatHeight, -1.5f);
+    glTexCoord2f(0.7f, 0.0f); glVertex3f(4.9f - couchDepth * 0.7f, seatHeight + backHeight, -1.5f);
+    glTexCoord2f(0.7f, 1.0f); glVertex3f(4.9f - couchDepth * 0.7f, seatHeight + backHeight, 1.5f);
+    glTexCoord2f(0.0f, 1.0f); glVertex3f(4.9f - couchDepth * 0.7f, seatHeight, 1.5f);
+    
+    // Right side of backrest
+    glNormal3f(1.0f, 0.3f, 0.0f);
+    glVertex3f(4.9f - couchDepth * 0.3f, seatHeight, -1.5f);
+    glVertex3f(4.9f - couchDepth * 0.3f, seatHeight + backHeight, -1.5f);
+    glVertex3f(4.9f - couchDepth * 0.3f, seatHeight + backHeight, 1.5f);
+    glVertex3f(4.9f - couchDepth * 0.3f, seatHeight, 1.5f);
+    glEnd();
+    
+    // ===== ARMRESTS =====
+    glColor3fv(colorDarkWood);
+    glDisable(GL_TEXTURE_2D);
+    glBegin(GL_QUADS);
+    // Left armrest - outside face
+    glNormal3f(-1.0f, 0.0f, 0.0f);
+    glVertex3f(4.9f - couchDepth, seatHeight, -1.5f);
+    glVertex3f(4.9f - couchDepth, seatHeight, -1.5f - armWidth);
+    glVertex3f(4.9f - couchDepth, seatHeight + armHeight, -1.5f - armWidth);
+    glVertex3f(4.9f - couchDepth, seatHeight + armHeight, -1.5f);
+    
+    // Left armrest - top face
+    glNormal3f(0.0f, 1.0f, 0.0f);
+    glVertex3f(4.9f - couchDepth, seatHeight + armHeight, -1.5f - armWidth);
+    glVertex3f(4.9f - couchDepth * 0.5f, seatHeight + armHeight, -1.5f - armWidth);
+    glVertex3f(4.9f - couchDepth * 0.5f, seatHeight + armHeight, -1.5f);
+    glVertex3f(4.9f - couchDepth, seatHeight + armHeight, -1.5f);
+    
+    // Right armrest - outside face
+    glVertex3f(4.9f - couchDepth, seatHeight, 1.5f);
+    glVertex3f(4.9f - couchDepth, seatHeight, 1.5f + armWidth);
+    glVertex3f(4.9f - couchDepth, seatHeight + armHeight, 1.5f + armWidth);
+    glVertex3f(4.9f - couchDepth, seatHeight + armHeight, 1.5f);
+    
+    // Right armrest - top face
+    glVertex3f(4.9f - couchDepth, seatHeight + armHeight, 1.5f + armWidth);
+    glVertex3f(4.9f - couchDepth * 0.5f, seatHeight + armHeight, 1.5f + armWidth);
+    glVertex3f(4.9f - couchDepth * 0.5f, seatHeight + armHeight, 1.5f);
+    glVertex3f(4.9f - couchDepth, seatHeight + armHeight, 1.5f);
+    glEnd();
+    
+    // ===== COUCH LEGS =====
+    glColor3fv(colorGold);
+    glBegin(GL_QUADS);
+    float legSize = 0.1f;
+    // Front left leg
+    glVertex3f(4.9f, 0.0f, -1.5f);
+    glVertex3f(4.9f - legSize, 0.0f, -1.5f);
+    glVertex3f(4.9f - legSize, legSize, -1.5f - legSize);
+    glVertex3f(4.9f, legSize, -1.5f - legSize);
+    
+    // Front right leg
+    glVertex3f(4.9f, 0.0f, 1.5f);
+    glVertex3f(4.9f - legSize, 0.0f, 1.5f);
+    glVertex3f(4.9f - legSize, legSize, 1.5f + legSize);
+    glVertex3f(4.9f, legSize, 1.5f + legSize);
+    
+    // Back left leg
+    glVertex3f(4.9f - couchDepth, 0.0f, -1.5f);
+    glVertex3f(4.9f - couchDepth - legSize, 0.0f, -1.5f);
+    glVertex3f(4.9f - couchDepth - legSize, legSize, -1.5f - legSize);
+    glVertex3f(4.9f - couchDepth, legSize, -1.5f - legSize);
+    
+    // Back right leg
+    glVertex3f(4.9f - couchDepth, 0.0f, 1.5f);
+    glVertex3f(4.9f - couchDepth - legSize, 0.0f, 1.5f);
+    glVertex3f(4.9f - couchDepth - legSize, legSize, 1.5f + legSize);
+    glVertex3f(4.9f - couchDepth, legSize, 1.5f + legSize);
+    glEnd();
+    
+    glEnable(GL_TEXTURE_2D);
+    
+    // ===== DECORATIVE PILLOWS =====
+    glBindTexture(GL_TEXTURE_2D, textureCouch);
+    glColor3f(0.9f, 0.9f, 0.9f); // Lighter shade for pillows
+    
+    // Three pillows arranged on backrest
+    for(int i = 0; i < 3; i++) {
+        float zPos = -0.8f + i * 0.8f;
+        
+        glPushMatrix();
+        glTranslatef(4.9f - couchDepth * 0.5f, seatHeight + 0.4f, zPos);
+        glRotatef(15.0f, 1.0f, 0.0f, 0.0f); // Slight tilt
+        glScalef(0.35f, 0.35f, 0.35f);
+        glutSolidCube(1.0f);
+        glPopMatrix();
     }
 }
 
