@@ -23,7 +23,7 @@ const int WINDOW_HEIGHT = 800;
 // Camera variables
 float cameraAngleX = 0.0f;
 float cameraAngleY = 0.0f;
-float cameraDistance = 8.0f;
+float cameraDistance = 3.5f; // smaller orbit radius so camera stays inside the room
 float cameraPosX = 0.0f;
 float cameraPosY = 2.0f;
 float cameraPosZ = 8.0f;
@@ -48,17 +48,14 @@ bool mousePressed = false;
 bool animationPaused = false;
 
 // Texture IDs
-// GLuint textureWood, texturePlaster, texturePaper, texturePortrait;
 // Texture IDs
 GLuint textureWood = 0;
-GLuint texturePlaster = 0;
 GLuint texturePaper = 0;
 GLuint texturePortrait = 0;
 GLuint textureGlass = 0;
 GLuint textureGround = 0;
 GLuint textureWallpaper = 0;
 GLuint textureCarpet = 0;
-GLuint textureCurtains = 0;
 GLuint textureCouch = 0;
 // Colors for Socialist Realism aesthetic
 GLfloat colorRed[4] = {0.7f, 0.1f, 0.1f, 1.0f}; // Soviet Red
@@ -86,18 +83,15 @@ void drawWindow();
 void drawSunlight();
 void drawCapAndPapers();
 void drawShelves();
-void drawCurtains();
 void drawDeskLamp();
 void drawDocuments();
 void drawCarpet();
 void drawCouch();
 void loadTextures();
 void createWoodTexture();
-void createPlasterTexture();
 void createPaperTexture();
 void createWallpaperTexture();
 void createCarpetTexture();
-void createCurtainsTexture();
 void createCouchTexture();
 void createGlassTexture();
 void createGroundTexture();
@@ -178,7 +172,6 @@ void display() {
     drawSunlight();
     drawCapAndPapers();
     drawShelves();
-    drawCurtains();
     drawDeskLamp();
     drawDocuments();
     drawCouch();
@@ -376,14 +369,17 @@ void updateCamera() {
         glRotatef(cameraAngleY, 0.0f, 1.0f, 0.0f);
         glTranslatef(-cameraPosX, -cameraPosY, -cameraPosZ);
     } else {
-        // Orbital Camera Mode
+        // Orbital Camera Mode (orbit inside the room)
         float angleRad = orbitalAngle * M_PI / 180.0f;
-        float camX = cameraDistance * sin(angleRad);
-        float camZ = cameraDistance * cos(angleRad);
-        gluLookAt(camX, 3.0f, camZ,  // Eye position
-                  0.0f, 1.5f, 0.0f,  // Look at point (center of room)
-                  0.0f, 1.0f, 0.0f); // Up vector
-
+        // Keep orbit radius within room bounds so camera stays inside
+        float maxRadius = 3.5f;
+        float radius = fminf(cameraDistance, maxRadius);
+        float camX = radius * sinf(angleRad);
+        float camZ = radius * cosf(angleRad);
+        float camY = 2.2f; // eye height inside room
+        gluLookAt(camX, camY, camZ,
+                  0.0f, 1.2f, 0.0f,
+                  0.0f, 1.0f, 0.0f);
     }
 }
 
@@ -397,11 +393,9 @@ void loadTextures() {
     GLuint texIds[10];
     glGenTextures(10, texIds);
     textureWood = texIds[0];
-    texturePlaster = texIds[1];
     texturePaper = texIds[2];
     textureWallpaper = texIds[3];
     textureCarpet = texIds[4];
-    textureCurtains = texIds[5];
     textureCouch = texIds[6];
     textureGlass = texIds[7];
     textureGround = texIds[8];
@@ -409,11 +403,9 @@ void loadTextures() {
 
     // Load textures from files (each function will bind the named texture ID)
     createWoodTexture();
-    createPlasterTexture();
     createPaperTexture();
     createWallpaperTexture();
     createCarpetTexture();
-    createCurtainsTexture();
     createCouchTexture();
     createGlassTexture();
     createGroundTexture();
@@ -445,27 +437,6 @@ void createWoodTexture() {
     printf("Wood texture loaded (ID: %d)\n", textureWood);
 }
 
-void createPlasterTexture() {
-    int width, height, channels;
-    unsigned char *image = stbi_load("textures/plaster.jpg", &width, &height, &channels, 0);
-    
-    if (!image) {
-        printf("Failed to load plaster.jpg texture\n");
-        return;
-    }
-    
-    glBindTexture(GL_TEXTURE_2D, texturePlaster);
-    
-    GLenum format = (channels == 4) ? GL_RGBA : GL_RGB;
-    glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, format, GL_UNSIGNED_BYTE, image);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-    
-    stbi_image_free(image);
-    printf("Plaster texture loaded (ID: %d)\n", texturePlaster);
-}
 
 void createPaperTexture() {
     int width, height, channels;
@@ -597,28 +568,6 @@ void createCarpetTexture() {
     
     stbi_image_free(image);
     printf("Carpet texture loaded (ID: %d)\n", textureCarpet);
-}
-
-void createCurtainsTexture() {
-    int width, height, channels;
-    unsigned char *image = stbi_load("textures/curtains.jpg", &width, &height, &channels, 0);
-    
-    if (!image) {
-        printf("Failed to load curtains.jpg texture\n");
-        return;
-    }
-    
-    glBindTexture(GL_TEXTURE_2D, textureCurtains);
-    
-    GLenum format = (channels == 4) ? GL_RGBA : GL_RGB;
-    glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, format, GL_UNSIGNED_BYTE, image);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-    
-    stbi_image_free(image);
-    printf("Curtains texture loaded (ID: %d)\n", textureCurtains);
 }
 
 void createCouchTexture() {
@@ -879,126 +828,274 @@ void drawChair() {
     
     // chair back (with thickness)
     glBegin(GL_QUADS);
-    // Front face
+    // Front face (texture mapped)
     glNormal3f(0.0f, 0.0f, -1.0f);
-    glVertex3f(-0.5f, 0.6f, 1.5f);
-    glVertex3f(0.5f, 0.6f, 1.5f);
-    glVertex3f(0.5f, 1.5f, 1.5f);
-    glVertex3f(-0.5f, 1.5f, 1.5f);
+    glTexCoord2f(0.0f, 0.0f); glVertex3f(-0.5f, 0.6f, 1.5f);
+    glTexCoord2f(1.0f, 0.0f); glVertex3f(0.5f, 0.6f, 1.5f);
+    glTexCoord2f(1.0f, 1.0f); glVertex3f(0.5f, 1.5f, 1.5f);
+    glTexCoord2f(0.0f, 1.0f); glVertex3f(-0.5f, 1.5f, 1.5f);
     // Back face
     glNormal3f(0.0f, 0.0f, 1.0f);
-    glVertex3f(-0.5f, 0.6f, 1.5f + backThickness);
-    glVertex3f(0.5f, 0.6f, 1.5f + backThickness);
-    glVertex3f(0.5f, 1.5f, 1.5f + backThickness);
-    glVertex3f(-0.5f, 1.5f, 1.5f + backThickness);
+    glTexCoord2f(0.0f, 0.0f); glVertex3f(-0.5f, 0.6f, 1.5f + backThickness);
+    glTexCoord2f(1.0f, 0.0f); glVertex3f(0.5f, 0.6f, 1.5f + backThickness);
+    glTexCoord2f(1.0f, 1.0f); glVertex3f(0.5f, 1.5f, 1.5f + backThickness);
+    glTexCoord2f(0.0f, 1.0f); glVertex3f(-0.5f, 1.5f, 1.5f + backThickness);
     // Top edge
     glNormal3f(0.0f, 1.0f, 0.0f);
-    glVertex3f(-0.5f, 1.5f, 1.5f);
-    glVertex3f(0.5f, 1.5f, 1.5f);
-    glVertex3f(0.5f, 1.5f, 1.5f + backThickness);
-    glVertex3f(-0.5f, 1.5f, 1.5f + backThickness);
+    glTexCoord2f(0.0f, 0.0f); glVertex3f(-0.5f, 1.5f, 1.5f);
+    glTexCoord2f(1.0f, 0.0f); glVertex3f(0.5f, 1.5f, 1.5f);
+    glTexCoord2f(1.0f, 1.0f); glVertex3f(0.5f, 1.5f, 1.5f + backThickness);
+    glTexCoord2f(0.0f, 1.0f); glVertex3f(-0.5f, 1.5f, 1.5f + backThickness);
     // Bottom edge
     glNormal3f(0.0f, -1.0f, 0.0f);
-    glVertex3f(-0.5f, 0.6f, 1.5f);
-    glVertex3f(0.5f, 0.6f, 1.5f);
-    glVertex3f(0.5f, 0.6f, 1.5f + backThickness);
-    glVertex3f(-0.5f, 0.6f, 1.5f + backThickness);
+    glTexCoord2f(0.0f, 0.0f); glVertex3f(-0.5f, 0.6f, 1.5f);
+    glTexCoord2f(1.0f, 0.0f); glVertex3f(0.5f, 0.6f, 1.5f);
+    glTexCoord2f(1.0f, 1.0f); glVertex3f(0.5f, 0.6f, 1.5f + backThickness);
+    glTexCoord2f(0.0f, 1.0f); glVertex3f(-0.5f, 0.6f, 1.5f + backThickness);
     // Left edge
     glNormal3f(-1.0f, 0.0f, 0.0f);
-    glVertex3f(-0.5f, 0.6f, 1.5f);
-    glVertex3f(-0.5f, 1.5f, 1.5f);
-    glVertex3f(-0.5f, 1.5f, 1.5f + backThickness);
-    glVertex3f(-0.5f, 0.6f, 1.5f + backThickness);
+    glTexCoord2f(0.0f, 0.0f); glVertex3f(-0.5f, 0.6f, 1.5f);
+    glTexCoord2f(1.0f, 0.0f); glVertex3f(-0.5f, 1.5f, 1.5f);
+    glTexCoord2f(1.0f, 1.0f); glVertex3f(-0.5f, 1.5f, 1.5f + backThickness);
+    glTexCoord2f(0.0f, 1.0f); glVertex3f(-0.5f, 0.6f, 1.5f + backThickness);
     // Right edge
     glNormal3f(1.0f, 0.0f, 0.0f);
-    glVertex3f(0.5f, 0.6f, 1.5f);
-    glVertex3f(0.5f, 1.5f, 1.5f);
-    glVertex3f(0.5f, 1.5f, 1.5f + backThickness);
-    glVertex3f(0.5f, 0.6f, 1.5f + backThickness);
+    glTexCoord2f(0.0f, 0.0f); glVertex3f(0.5f, 0.6f, 1.5f);
+    glTexCoord2f(1.0f, 0.0f); glVertex3f(0.5f, 1.5f, 1.5f);
+    glTexCoord2f(1.0f, 1.0f); glVertex3f(0.5f, 1.5f, 1.5f + backThickness);
+    glTexCoord2f(0.0f, 1.0f); glVertex3f(0.5f, 0.6f, 1.5f + backThickness);
     glEnd();
     
-    // Chair legs (now with thickness)
+    // Chair legs (now with thickness) and textured
     glColor3fv(colorDarkWood);
     float legThickness = 0.06f;
     glBegin(GL_QUADS);
     // Front left leg
-    glVertex3f(-0.4f, 0.0f, 0.6f);
-    glVertex3f(-0.4f + legThickness, 0.0f, 0.6f);
-    glVertex3f(-0.4f + legThickness, 0.6f, 0.6f);
-    glVertex3f(-0.4f, 0.6f, 0.6f);
+    glNormal3f(0.0f, 0.0f, -1.0f);
+    glTexCoord2f(0.0f, 0.0f); glVertex3f(-0.4f, 0.0f, 0.6f);
+    glTexCoord2f(1.0f, 0.0f); glVertex3f(-0.4f + legThickness, 0.0f, 0.6f);
+    glTexCoord2f(1.0f, 1.0f); glVertex3f(-0.4f + legThickness, 0.6f, 0.6f);
+    glTexCoord2f(0.0f, 1.0f); glVertex3f(-0.4f, 0.6f, 0.6f);
     // Front right leg
-    glVertex3f(0.4f - legThickness, 0.0f, 0.6f);
-    glVertex3f(0.4f, 0.0f, 0.6f);
-    glVertex3f(0.4f, 0.6f, 0.6f);
-    glVertex3f(0.4f - legThickness, 0.6f, 0.6f);
+    glNormal3f(0.0f, 0.0f, -1.0f);
+    glTexCoord2f(0.0f, 0.0f); glVertex3f(0.4f - legThickness, 0.0f, 0.6f);
+    glTexCoord2f(1.0f, 0.0f); glVertex3f(0.4f, 0.0f, 0.6f);
+    glTexCoord2f(1.0f, 1.0f); glVertex3f(0.4f, 0.6f, 0.6f);
+    glTexCoord2f(0.0f, 1.0f); glVertex3f(0.4f - legThickness, 0.6f, 0.6f);
     // Back left leg
-    glVertex3f(-0.4f, 0.0f, 1.4f);
-    glVertex3f(-0.4f + legThickness, 0.0f, 1.4f);
-    glVertex3f(-0.4f + legThickness, 0.6f, 1.4f);
-    glVertex3f(-0.4f, 0.6f, 1.4f);
+    glNormal3f(0.0f, 0.0f, 1.0f);
+    glTexCoord2f(0.0f, 0.0f); glVertex3f(-0.4f, 0.0f, 1.4f);
+    glTexCoord2f(1.0f, 0.0f); glVertex3f(-0.4f + legThickness, 0.0f, 1.4f);
+    glTexCoord2f(1.0f, 1.0f); glVertex3f(-0.4f + legThickness, 0.6f, 1.4f);
+    glTexCoord2f(0.0f, 1.0f); glVertex3f(-0.4f, 0.6f, 1.4f);
     // Back right leg
-    glVertex3f(0.4f - legThickness, 0.0f, 1.4f);
-    glVertex3f(0.4f, 0.0f, 1.4f);
-    glVertex3f(0.4f, 0.6f, 1.4f);
-    glVertex3f(0.4f - legThickness, 0.6f, 1.4f);
+    glNormal3f(0.0f, 0.0f, 1.0f);
+    glTexCoord2f(0.0f, 0.0f); glVertex3f(0.4f - legThickness, 0.0f, 1.4f);
+    glTexCoord2f(1.0f, 0.0f); glVertex3f(0.4f, 0.0f, 1.4f);
+    glTexCoord2f(1.0f, 1.0f); glVertex3f(0.4f, 0.6f, 1.4f);
+    glTexCoord2f(0.0f, 1.0f); glVertex3f(0.4f - legThickness, 0.6f, 1.4f);
     glEnd();
 }
 
 void drawRadio() {
+    // Soft shadow under radio
+    glPushAttrib(GL_ENABLE_BIT);
+    glDisable(GL_LIGHTING);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glColor4f(0.0f, 0.0f, 0.0f, 0.25f);
+    glBegin(GL_QUADS);
+    glVertex3f(-0.65f, 1.005f, -0.9f);
+    glVertex3f(0.65f, 1.005f, -0.9f);
+    glVertex3f(0.65f, 1.005f, -0.7f);
+    glVertex3f(-0.65f, 1.005f, -0.7f);
+    glEnd();
+    glDisable(GL_BLEND);
+    glEnable(GL_LIGHTING);
+    glPopAttrib();
+
+    // Radio body as a small box with material shine
+    GLfloat radioSpec[] = {0.6f, 0.6f, 0.6f, 1.0f};
+    GLfloat radioShininess = 30.0f;
+    glMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, radioSpec);
+    glMaterialf(GL_FRONT_AND_BACK, GL_SHININESS, radioShininess);
     glColor3fv(colorGray);
 
-    // radio body
-    glBegin(GL_QUADS);
+    float rx0 = -0.6f, rx1 = 0.6f;
+    float ry0 = 1.1f, ry1 = 1.8f;
+    float rzFront = -0.7f, rzBack = -0.95f;
+
     // Front face
+    glBegin(GL_QUADS);
     glNormal3f(0.0f, 0.0f, 1.0f);
-    glVertex3f(-0.6f, 1.1f, -0.8f);
-    glVertex3f(0.6f, 1.1f, -0.8f);
-    glVertex3f(0.6f, 1.8f, -0.8f);
-    glVertex3f(-0.6f, 1.8f, -0.8f);
+    glVertex3f(rx0, ry0, rzFront);
+    glVertex3f(rx1, ry0, rzFront);
+    glVertex3f(rx1, ry1, rzFront);
+    glVertex3f(rx0, ry1, rzFront);
     glEnd();
 
-    // speaker grills
-    glColor3fv(colorGold);
+    // Back face
+    glBegin(GL_QUADS);
+    glNormal3f(0.0f, 0.0f, -1.0f);
+    glVertex3f(rx1, ry0, rzBack);
+    glVertex3f(rx0, ry0, rzBack);
+    glVertex3f(rx0, ry1, rzBack);
+    glVertex3f(rx1, ry1, rzBack);
+    glEnd();
+
+    // Top
+    glBegin(GL_QUADS);
+    glNormal3f(0.0f, 1.0f, 0.0f);
+    glVertex3f(rx0, ry1, rzFront);
+    glVertex3f(rx1, ry1, rzFront);
+    glVertex3f(rx1, ry1, rzBack);
+    glVertex3f(rx0, ry1, rzBack);
+    glEnd();
+
+    // Bottom
+    glBegin(GL_QUADS);
+    glNormal3f(0.0f, -1.0f, 0.0f);
+    glVertex3f(rx0, ry0, rzBack);
+    glVertex3f(rx1, ry0, rzBack);
+    glVertex3f(rx1, ry0, rzFront);
+    glVertex3f(rx0, ry0, rzFront);
+    glEnd();
+
+    // Left
+    glBegin(GL_QUADS);
+    glNormal3f(-1.0f, 0.0f, 0.0f);
+    glVertex3f(rx0, ry0, rzBack);
+    glVertex3f(rx0, ry0, rzFront);
+    glVertex3f(rx0, ry1, rzFront);
+    glVertex3f(rx0, ry1, rzBack);
+    glEnd();
+
+    // Right
+    glBegin(GL_QUADS);
+    glNormal3f(1.0f, 0.0f, 0.0f);
+    glVertex3f(rx1, ry0, rzFront);
+    glVertex3f(rx1, ry0, rzBack);
+    glVertex3f(rx1, ry1, rzBack);
+    glVertex3f(rx1, ry1, rzFront);
+    glEnd();
+
+    // Speaker grille: draw recessed dark rectangles on front
+    glColor3f(0.15f, 0.15f, 0.15f);
     for(int i = 0; i < 4; i++){
-        glBegin(GL_LINE_LOOP);
-        float x = -0.4f + i * 0.2f;
-        glVertex3f(x, 1.4f, -0.79f);
-        glVertex3f(x + 0.1f, 1.4f, -0.79f);
-        glVertex3f(x + 0.1f, 1.6f, -0.79f);
-        glVertex3f(x, 1.6f, -0.79f);
+        float x = -0.35f + i * 0.2f;
+        float w = 0.14f;
+        float h0 = 1.35f, h1 = 1.65f;
+        glBegin(GL_QUADS);
+        glNormal3f(0.0f, 0.0f, 1.0f);
+        glVertex3f(x, h0, rzFront + 0.001f);
+        glVertex3f(x + w, h0, rzFront + 0.001f);
+        glVertex3f(x + w, h1, rzFront + 0.001f);
+        glVertex3f(x, h1, rzFront + 0.001f);
         glEnd();
     }
+
+    // Knob
+    glColor3fv(colorGold);
+    glPushMatrix();
+    glTranslatef(0.55f, 1.45f, rzFront + 0.01f);
+    glutSolidSphere(0.04f, 12, 8);
+    glPopMatrix();
+
+    // Antenna
+    glColor3f(0.8f, 0.8f, 0.8f);
+    glLineWidth(2.0f);
+    glBegin(GL_LINES);
+    glVertex3f(0.0f, ry1, rzBack + 0.0f);
+    glVertex3f(0.0f, ry1 + 0.9f, rzBack - 0.05f);
+    glEnd();
+    glLineWidth(1.0f);
+
+    // reset material specular to default low
+    GLfloat defaultSpec[] = {0.2f, 0.2f, 0.2f, 1.0f};
+    glMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, defaultSpec);
 }
 
 void drawBooks() {
-    // Stack of books
-    glColor4fv(colorRed); // 1st book, red cover
+    // Stack of books as small boxes
+    // Book 1 (red)
+    float b1x0 = 0.5f, b1x1 = 1.0f;
+    float b1y0 = 1.01f, b1y1 = 1.2f;
+    float b1z0 = -0.35f, b1z1 = -0.25f; // small thickness
+    glColor4fv(colorRed);
+    // front
     glBegin(GL_QUADS);
     glNormal3f(0.0f, 0.0f, 1.0f);
-    glVertex3f(0.5f, 1.01f, -0.3f);
-    glVertex3f(1.0f, 1.01f, -0.3f);
-    glVertex3f(1.0f, 1.2f, -0.3f);
-    glVertex3f(0.5f, 1.2f, -0.3f);
+    glVertex3f(b1x0, b1y0, b1z1);
+    glVertex3f(b1x1, b1y0, b1z1);
+    glVertex3f(b1x1, b1y1, b1z1);
+    glVertex3f(b1x0, b1y1, b1z1);
     glEnd();
-
-    glColor3fv(colorGold); // 2nd Book - gold cover
+    // back
     glBegin(GL_QUADS);
-    glVertex3f(0.5f, 1.21f, -0.4f);
-    glVertex3f(1.0f, 1.21f, -0.4f);
-    glVertex3f(1.0f, 1.35f, -0.4f);
-    glVertex3f(0.5f, 1.35f, -0.4f);
+    glNormal3f(0.0f, 0.0f, -1.0f);
+    glVertex3f(b1x1, b1y0, b1z0);
+    glVertex3f(b1x0, b1y0, b1z0);
+    glVertex3f(b1x0, b1y1, b1z0);
+    glVertex3f(b1x1, b1y1, b1z0);
     glEnd();
-
-    // papers - use paper texture
-    glBindTexture(GL_TEXTURE_2D, texturePaper);
-    glColor3f(1.0f, 1.0f, 1.0f); // White to show texture colors
+    // top
     glBegin(GL_QUADS);
     glNormal3f(0.0f, 1.0f, 0.0f);
-    glTexCoord2f(0.0f, 0.0f); glVertex3f(-1.0f, 1.01f, 0.0f);
-    glTexCoord2f(1.0f, 0.0f); glVertex3f(-0.5f, 1.01f, 0.0f);
-    glTexCoord2f(1.0f, 1.0f); glVertex3f(-0.5f, 1.05f, 0.0f);
-    glTexCoord2f(0.0f, 1.0f); glVertex3f(-1.0f, 1.05f, 0.0f);
+    glVertex3f(b1x0, b1y1, b1z1);
+    glVertex3f(b1x1, b1y1, b1z1);
+    glVertex3f(b1x1, b1y1, b1z0);
+    glVertex3f(b1x0, b1y1, b1z0);
     glEnd();
+    // sides
+    glBegin(GL_QUADS);
+    glNormal3f(-1.0f, 0.0f, 0.0f);
+    glVertex3f(b1x0, b1y0, b1z0);
+    glVertex3f(b1x0, b1y0, b1z1);
+    glVertex3f(b1x0, b1y1, b1z1);
+    glVertex3f(b1x0, b1y1, b1z0);
+    glEnd();
+    glBegin(GL_QUADS);
+    glNormal3f(1.0f, 0.0f, 0.0f);
+    glVertex3f(b1x1, b1y0, b1z1);
+    glVertex3f(b1x1, b1y0, b1z0);
+    glVertex3f(b1x1, b1y1, b1z0);
+    glVertex3f(b1x1, b1y1, b1z1);
+    glEnd();
+
+    // Book 2 (gold)
+    float b2x0 = 0.5f, b2x1 = 1.0f;
+    float b2y0 = 1.21f, b2y1 = 1.35f;
+    float b2z0 = -0.45f, b2z1 = -0.35f;
+    glColor3fv(colorGold);
+    // simple box
+    glBegin(GL_QUADS);
+    // front
+    glNormal3f(0.0f, 0.0f, 1.0f);
+    glVertex3f(b2x0, b2y0, b2z1);
+    glVertex3f(b2x1, b2y0, b2z1);
+    glVertex3f(b2x1, b2y1, b2z1);
+    glVertex3f(b2x0, b2y1, b2z1);
+    // back
+    glNormal3f(0.0f, 0.0f, -1.0f);
+    glVertex3f(b2x1, b2y0, b2z0);
+    glVertex3f(b2x0, b2y0, b2z0);
+    glVertex3f(b2x0, b2y1, b2z0);
+    glVertex3f(b2x1, b2y1, b2z0);
+    glEnd();
+
+    // papers - use paper texture, make thin stack with slight offsets
+    glBindTexture(GL_TEXTURE_2D, texturePaper);
+    glColor3f(1.0f, 1.0f, 1.0f);
+    for (int i = 0; i < 3; ++i) {
+        float offset = i * 0.005f;
+        glBegin(GL_QUADS);
+        glNormal3f(0.0f, 1.0f, 0.0f);
+        glTexCoord2f(0.0f, 0.0f); glVertex3f(-1.0f + offset, 1.01f + offset, 0.0f);
+        glTexCoord2f(1.0f, 0.0f); glVertex3f(-0.5f + offset, 1.01f + offset, 0.0f);
+        glTexCoord2f(1.0f, 1.0f); glVertex3f(-0.5f + offset, 1.05f + offset, 0.0f);
+        glTexCoord2f(0.0f, 1.0f); glVertex3f(-1.0f + offset, 1.05f + offset, 0.0f);
+        glEnd();
+    }
 }
 void drawWindow() {
     // window on left wall/
@@ -1096,13 +1193,43 @@ void drawCapAndPapers() {
     glBindTexture(GL_TEXTURE_2D, texturePaper);
     glColor3f(1.0f, 1.0f, 1.0f); // White to show texture colors
     for(int i = 0; i < 3; i++){
+        float offset = i * 0.03f;
+        // soft shadow under each paper
+        glPushAttrib(GL_ENABLE_BIT);
+        glDisable(GL_LIGHTING);
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        glColor4f(0.0f, 0.0f, 0.0f, 0.18f);
         glBegin(GL_QUADS);
+        glVertex3f(-1.52f + offset, 1.003f, -0.52f + offset);
+        glVertex3f(-0.98f + offset, 1.003f, -0.52f + offset);
+        glVertex3f(-0.98f + offset, 1.003f, -0.28f + offset);
+        glVertex3f(-1.52f + offset, 1.003f, -0.28f + offset);
+        glEnd();
+        glDisable(GL_BLEND);
+        glEnable(GL_LIGHTING);
+        glPopAttrib();
+
+        // slightly curved paper using center vertex raised
+        glBegin(GL_TRIANGLES);
         glNormal3f(0.0f, 1.0f, 0.0f);
-        float offset = i * 0.05f;
+        // triangle 1
         glTexCoord2f(0.0f, 0.0f); glVertex3f(-1.5f + offset, 1.01f, -0.5f + offset);
         glTexCoord2f(1.0f, 0.0f); glVertex3f(-1.0f + offset, 1.01f, -0.5f + offset);
-        glTexCoord2f(1.0f, 1.0f); glVertex3f(-1.0f + offset, 1.02f, -0.3f + offset);
-        glTexCoord2f(0.0f, 1.0f); glVertex3f(-1.5f + offset, 1.02f, -0.3f + offset);
+        glTexCoord2f(0.5f, 1.0f); glVertex3f(-1.25f + offset, 1.03f, -0.4f + offset);
+        // triangle 2
+        glTexCoord2f(0.5f, 1.0f); glVertex3f(-1.25f + offset, 1.03f, -0.4f + offset);
+        glTexCoord2f(1.0f, 0.0f); glVertex3f(-1.0f + offset, 1.01f, -0.3f + offset);
+        glTexCoord2f(0.0f, 0.0f); glVertex3f(-1.5f + offset, 1.01f, -0.3f + offset);
+        glEnd();
+
+        // slight thickness underside (very thin quad)
+        glBegin(GL_QUADS);
+        glNormal3f(0.0f, -1.0f, 0.0f);
+        glVertex3f(-1.5f + offset, 1.009f, -0.5f + offset);
+        glVertex3f(-1.0f + offset, 1.009f, -0.5f + offset);
+        glVertex3f(-1.0f + offset, 1.009f, -0.3f + offset);
+        glVertex3f(-1.5f + offset, 1.009f, -0.3f + offset);
         glEnd();
     }
 }
@@ -1249,92 +1376,7 @@ void drawShelves() {
     glEnd();
 }
 
-void drawCurtains() {
-    // Red curtains on left side of window
-    if (textureCurtains == 0) {
-        // No curtain texture loaded, draw simple colored panels
-        glDisable(GL_TEXTURE_2D);
-        glColor3fv(colorRed);
-        glBegin(GL_QUADS);
-        glNormal3f(1.0f, 0.0f, 0.0f);
-        glVertex3f(-4.95f, 1.4f, -2.0f);
-        glVertex3f(-4.95f, 1.4f, -1.0f);
-        glVertex3f(-4.95f, 3.6f, -1.0f);
-        glVertex3f(-4.95f, 3.6f, -2.0f);
-        glEnd();
-        glBegin(GL_QUADS);
-        glVertex3f(-4.95f, 1.4f, 1.0f);
-        glVertex3f(-4.95f, 1.4f, 2.0f);
-        glVertex3f(-4.95f, 3.6f, 2.0f);
-        glVertex3f(-4.95f, 3.6f, 1.0f);
-        glEnd();
-        glEnable(GL_TEXTURE_2D);
-        return;
-    }
 
-    glEnable(GL_TEXTURE_2D);
-    glBindTexture(GL_TEXTURE_2D, textureCurtains);
-    glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
-    glColor3f(1.0f, 1.0f, 1.0f); // Ensure texture colors show correctly
-
-    // Subdivide panels into vertical strips to fake folds
-    const int strips = 8;
-    float leftZ0 = -2.0f, leftZ1 = -1.0f;
-    float rightZ0 = 1.0f, rightZ1 = 2.0f;
-    float y0 = 1.4f, y1 = 3.6f;
-    float sRepeat = 2.0f; // how many times texture repeats across width
-
-    // Left panel
-    for (int i = 0; i < strips; ++i) {
-        float t0 = (float)i / strips;
-        float t1 = (float)(i + 1) / strips;
-        float zA = leftZ0 + (leftZ1 - leftZ0) * t0;
-        float zB = leftZ0 + (leftZ1 - leftZ0) * t1;
-        float sA = t0 * sRepeat;
-        float sB = t1 * sRepeat;
-        float offset = 0.02f * sinf(i * 0.7f); // slight x offset to simulate fold
-        float nx = 0.9f + 0.1f * cosf(i * 0.6f);
-        float nz = 0.1f * sinf(i * 0.8f);
-
-        glBegin(GL_QUADS);
-        glNormal3f(nx, 0.0f, nz);
-        glTexCoord2f(sA, 0.0f); glVertex3f(-4.95f + offset, y0, zA);
-        glTexCoord2f(sB, 0.0f); glVertex3f(-4.95f + offset, y0, zB);
-        glTexCoord2f(sB, 1.0f); glVertex3f(-4.95f + offset, y1, zB);
-        glTexCoord2f(sA, 1.0f); glVertex3f(-4.95f + offset, y1, zA);
-        glEnd();
-    }
-
-    // Right panel
-    for (int i = 0; i < strips; ++i) {
-        float t0 = (float)i / strips;
-        float t1 = (float)(i + 1) / strips;
-        float zA = rightZ0 + (rightZ1 - rightZ0) * t0;
-        float zB = rightZ0 + (rightZ1 - rightZ0) * t1;
-        float sA = t0 * sRepeat;
-        float sB = t1 * sRepeat;
-        float offset = 0.02f * sinf(i * 0.9f);
-        float nx = 0.9f + 0.1f * cosf(i * 0.5f);
-        float nz = 0.1f * sinf(i * 0.4f);
-
-        glBegin(GL_QUADS);
-        glNormal3f(nx, 0.0f, nz);
-        glTexCoord2f(sA, 0.0f); glVertex3f(-4.95f + offset, y0, zA);
-        glTexCoord2f(sB, 0.0f); glVertex3f(-4.95f + offset, y0, zB);
-        glTexCoord2f(sB, 1.0f); glVertex3f(-4.95f + offset, y1, zB);
-        glTexCoord2f(sA, 1.0f); glVertex3f(-4.95f + offset, y1, zA);
-        glEnd();
-    }
-    
-    // Curtain rod
-    glColor3fv(colorGold);
-    glLineWidth(3.0f);
-    glBegin(GL_LINES);
-    glVertex3f(-4.94f, 3.7f, -2.0f);
-    glVertex3f(-4.94f, 3.7f, 2.0f);
-    glEnd();
-    glLineWidth(1.0f);
-}
 
 void drawDeskLamp() {
     // Desk lamp on right side of desk
@@ -1385,12 +1427,31 @@ void drawDocuments() {
     // Document stack 1 - right side of desk
     for(int i = 0; i < 3; i++) {
         float offset = i * 0.02f;
+        // small soft shadow
+        glPushAttrib(GL_ENABLE_BIT);
+        glDisable(GL_LIGHTING);
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        glColor4f(0.0f,0.0f,0.0f,0.15f);
         glBegin(GL_QUADS);
+        glVertex3f(0.18f + offset, 1.003f + offset, -0.72f + offset);
+        glVertex3f(1.22f + offset, 1.003f + offset, -0.72f + offset);
+        glVertex3f(1.22f + offset, 1.003f + offset, -0.18f + offset);
+        glVertex3f(0.18f + offset, 1.003f + offset, -0.18f + offset);
+        glEnd();
+        glDisable(GL_BLEND);
+        glEnable(GL_LIGHTING);
+        glPopAttrib();
+
+        // paper with slight bend
+        glBegin(GL_TRIANGLES);
         glNormal3f(0.0f, 1.0f, 0.0f);
         glTexCoord2f(0.0f, 0.0f); glVertex3f(0.2f + offset, 1.01f + offset, -0.7f + offset);
         glTexCoord2f(1.0f, 0.0f); glVertex3f(1.2f + offset, 1.01f + offset, -0.7f + offset);
-        glTexCoord2f(1.0f, 1.0f); glVertex3f(1.2f + offset, 1.02f, -0.2f + offset);
-        glTexCoord2f(0.0f, 1.0f); glVertex3f(0.2f + offset, 1.02f, -0.2f + offset);
+        glTexCoord2f(0.5f, 1.0f); glVertex3f(0.7f + offset, 1.03f + offset, -0.45f + offset);
+        glTexCoord2f(0.5f, 1.0f); glVertex3f(0.7f + offset, 1.03f + offset, -0.45f + offset);
+        glTexCoord2f(1.0f, 0.0f); glVertex3f(1.2f + offset, 1.01f + offset, -0.2f + offset);
+        glTexCoord2f(0.0f, 0.0f); glVertex3f(0.2f + offset, 1.01f + offset, -0.2f + offset);
         glEnd();
     }
     
