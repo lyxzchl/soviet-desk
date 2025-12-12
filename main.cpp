@@ -30,7 +30,7 @@ float cameraPosZ = 8.0f;
 float cameraLookX = 0.0f;
 float cameraLookY = 1.5f;
 float cameraLookZ = 0.0f;
-bool cameraMode = false; // false = orbital, true = FPS
+bool cameraMode = true; // false = orbital, true = FPS
 float orbitalAngle = 0.0f;
 
 // Lighting states
@@ -1536,174 +1536,156 @@ void drawCarpet() {
     glLineWidth(1.0f);
     glEnable(GL_TEXTURE_2D);
 }
-
 void drawCouch() {
-    // Couch on the right wall - improved 3D design
-    glBindTexture(GL_TEXTURE_2D, textureCouch);
-    glColor3f(1.0f, 1.0f, 1.0f); // White to show texture colors
     
-    float couchDepth = 0.6f;     // How far it sticks out from wall
-    float seatHeight = 0.4f;
+    glBindTexture(GL_TEXTURE_2D, textureCouch);
+    glColor3f(1, 1, 1);
+
+    float couchDepth = 1.1f;
+    float seatHeight = 0.55f;
+    float seatThickness = 0.25f;
+
     float backHeight = 1.0f;
-    float armWidth = 0.25f;
-    float armHeight = 0.5f;
-    
-    // ===== SEAT CUSHION =====
+    float backTilt   = 0.15f;
+
+    float armWidth = 0.35f;
+    float armHeight = 0.75f;
+    float couchLength = 2.6f;
+
+    float xFront = 4.9f;
+    float xBack  = xFront - couchDepth;
+    float zLeft  = -couchLength * 0.5f;
+    float zRight = couchLength * 0.5f;
+    glPushMatrix();
+    glTranslatef(xFront - couchDepth * 0.5f, 0, 0);  // pivot around seat center
+    glRotatef(180.0f, 0, 1, 0);
+    glTranslatef(-(xFront - couchDepth * 0.5f), 0, 0);
+     
+    // =======================
+    // SEAT (rectangular block)
+    // =======================
     glBegin(GL_QUADS);
-    // Top face of seat
-    glNormal3f(0.0f, 1.0f, 0.0f);
-    glTexCoord2f(0.0f, 0.0f); glVertex3f(4.9f - couchDepth, seatHeight, -1.5f);
-    glTexCoord2f(3.0f, 0.0f); glVertex3f(4.9f, seatHeight, -1.5f);
-    glTexCoord2f(3.0f, 1.0f); glVertex3f(4.9f, seatHeight, 1.5f);
-    glTexCoord2f(0.0f, 1.0f); glVertex3f(4.9f - couchDepth, seatHeight, 1.5f);
-    
-    // Front face of seat
-    glNormal3f(0.0f, -1.0f, 0.5f);
-    glTexCoord2f(0.0f, 0.0f); glVertex3f(4.9f - couchDepth, 0.0f, -1.5f);
-    glTexCoord2f(3.0f, 0.0f); glVertex3f(4.9f, 0.0f, -1.5f);
-    glTexCoord2f(3.0f, 0.4f); glVertex3f(4.9f, seatHeight, -1.5f);
-    glTexCoord2f(0.0f, 0.4f); glVertex3f(4.9f - couchDepth, seatHeight, -1.5f);
-    
-    // Back face of seat (where it meets backrest)
-    glNormal3f(0.0f, -0.2f, -1.0f);
-    glTexCoord2f(0.0f, 0.0f); glVertex3f(4.9f - couchDepth, 0.0f, 1.5f);
-    glTexCoord2f(3.0f, 0.0f); glVertex3f(4.9f, 0.0f, 1.5f);
-    glTexCoord2f(3.0f, 0.4f); glVertex3f(4.9f, seatHeight, 1.5f);
-    glTexCoord2f(0.0f, 0.4f); glVertex3f(4.9f - couchDepth, seatHeight, 1.5f);
-    
-    // Left side of seat
-    glNormal3f(-1.0f, 0.0f, 0.0f);
-    glTexCoord2f(0.0f, 0.0f); glVertex3f(4.9f - couchDepth, 0.0f, -1.5f);
-    glTexCoord2f(0.6f, 0.0f); glVertex3f(4.9f - couchDepth, seatHeight, -1.5f);
-    glTexCoord2f(0.6f, 0.4f); glVertex3f(4.9f - couchDepth, seatHeight, 1.5f);
-    glTexCoord2f(0.0f, 0.4f); glVertex3f(4.9f - couchDepth, 0.0f, 1.5f);
-    
-    // Right side of seat
-    glNormal3f(1.0f, 0.0f, 0.0f);
-    glTexCoord2f(0.0f, 0.0f); glVertex3f(4.9f, 0.0f, -1.5f);
-    glTexCoord2f(0.6f, 0.0f); glVertex3f(4.9f, seatHeight, -1.5f);
-    glTexCoord2f(0.6f, 0.4f); glVertex3f(4.9f, seatHeight, 1.5f);
-    glTexCoord2f(0.0f, 0.4f); glVertex3f(4.9f, 0.0f, 1.5f);
+
+    // Top
+    glNormal3f(0,1,0);
+    glTexCoord2f(0,0); glVertex3f(xBack,              seatHeight,        zLeft);
+    glTexCoord2f(3,0); glVertex3f(xFront,             seatHeight,        zLeft);
+    glTexCoord2f(3,1); glVertex3f(xFront,             seatHeight,        zRight);
+    glTexCoord2f(0,1); glVertex3f(xBack,              seatHeight,        zRight);
+
+    // Bottom
+    glNormal3f(0,-1,0);
+    glTexCoord2f(0,0); glVertex3f(xBack, seatHeight-seatThickness, zLeft);
+    glTexCoord2f(3,0); glVertex3f(xFront,seatHeight-seatThickness, zLeft);
+    glTexCoord2f(3,1); glVertex3f(xFront,seatHeight-seatThickness, zRight);
+    glTexCoord2f(0,1); glVertex3f(xBack, seatHeight-seatThickness, zRight);
+
+    // Front vertical face
+    glNormal3f(0,0,-1);
+    glTexCoord2f(0,0); glVertex3f(xBack, seatHeight-seatThickness, zLeft);
+    glTexCoord2f(3,0); glVertex3f(xFront,seatHeight-seatThickness, zLeft);
+    glTexCoord2f(3,1); glVertex3f(xFront,seatHeight,               zLeft);
+    glTexCoord2f(0,1); glVertex3f(xBack, seatHeight,               zLeft);
+
+    // Back vertical face
+    glNormal3f(0,0,1);
+    glTexCoord2f(0,0); glVertex3f(xBack, seatHeight-seatThickness, zRight);
+    glTexCoord2f(3,0); glVertex3f(xFront,seatHeight-seatThickness, zRight);
+    glTexCoord2f(3,1); glVertex3f(xFront,seatHeight,               zRight);
+    glTexCoord2f(0,1); glVertex3f(xBack, seatHeight,               zRight);
+
+    // Left side
+    glNormal3f(-1,0,0);
+    glTexCoord2f(0,0); glVertex3f(xBack,              seatHeight-seatThickness, zLeft);
+    glTexCoord2f(1,0); glVertex3f(xBack,              seatHeight,               zLeft);
+    glTexCoord2f(1,1); glVertex3f(xBack,              seatHeight,               zRight);
+    glTexCoord2f(0,1); glVertex3f(xBack,              seatHeight-seatThickness, zRight);
+
+    // Right side
+    glNormal3f(1,0,0);
+    glTexCoord2f(0,0); glVertex3f(xFront, seatHeight-seatThickness, zLeft);
+    glTexCoord2f(1,0); glVertex3f(xFront, seatHeight,               zLeft);
+    glTexCoord2f(1,1); glVertex3f(xFront, seatHeight,               zRight);
+    glTexCoord2f(0,1); glVertex3f(xFront, seatHeight-seatThickness, zRight);
+
     glEnd();
-    
-    // ===== BACKREST (angled) =====
+
+    // =======================
+    // BACKREST (tilted slab)
+    // =======================
     glBegin(GL_QUADS);
-    // Top of backrest
-    glNormal3f(0.0f, 1.0f, 0.3f);
-    glTexCoord2f(0.0f, 0.0f); glVertex3f(4.9f - couchDepth * 0.7f, seatHeight + backHeight, -1.5f);
-    glTexCoord2f(3.0f, 0.0f); glVertex3f(4.9f - couchDepth * 0.3f, seatHeight + backHeight, -1.5f);
-    glTexCoord2f(3.0f, 1.0f); glVertex3f(4.9f - couchDepth * 0.3f, seatHeight + backHeight, 1.5f);
-    glTexCoord2f(0.0f, 1.0f); glVertex3f(4.9f - couchDepth * 0.7f, seatHeight + backHeight, 1.5f);
-    
-    // Front face of backrest (against wall side)
-    glNormal3f(0.0f, 0.3f, -1.0f);
-    glTexCoord2f(0.0f, 0.0f); glVertex3f(4.9f - couchDepth * 0.7f, seatHeight, -1.5f);
-    glTexCoord2f(1.5f, 0.0f); glVertex3f(4.9f - couchDepth * 0.3f, seatHeight, -1.5f);
-    glTexCoord2f(1.5f, 1.0f); glVertex3f(4.9f - couchDepth * 0.3f, seatHeight + backHeight, -1.5f);
-    glTexCoord2f(0.0f, 1.0f); glVertex3f(4.9f - couchDepth * 0.7f, seatHeight + backHeight, -1.5f);
-    
-    // Back face of backrest
-    glNormal3f(0.0f, 0.3f, 1.0f);
-    glTexCoord2f(0.0f, 0.0f); glVertex3f(4.9f - couchDepth * 0.7f, seatHeight, 1.5f);
-    glTexCoord2f(1.5f, 0.0f); glVertex3f(4.9f - couchDepth * 0.3f, seatHeight, 1.5f);
-    glTexCoord2f(1.5f, 1.0f); glVertex3f(4.9f - couchDepth * 0.3f, seatHeight + backHeight, 1.5f);
-    glTexCoord2f(0.0f, 1.0f); glVertex3f(4.9f - couchDepth * 0.7f, seatHeight + backHeight, 1.5f);
-    
-    // Left side of backrest
-    glNormal3f(-1.0f, 0.3f, 0.0f);
-    glTexCoord2f(0.0f, 0.0f); glVertex3f(4.9f - couchDepth * 0.7f, seatHeight, -1.5f);
-    glTexCoord2f(0.5f, 0.0f); glVertex3f(4.9f - couchDepth * 0.7f, seatHeight + backHeight, -1.5f);
-    glTexCoord2f(0.5f, 1.0f); glVertex3f(4.9f - couchDepth * 0.7f, seatHeight + backHeight, 1.5f);
-    glTexCoord2f(0.0f, 1.0f); glVertex3f(4.9f - couchDepth * 0.7f, seatHeight, 1.5f);
-    
-    // Right side of backrest
-    glNormal3f(1.0f, 0.3f, 0.0f);
-    glTexCoord2f(0.0f, 0.0f); glVertex3f(4.9f - couchDepth * 0.3f, seatHeight, -1.5f);
-    glTexCoord2f(0.5f, 0.0f); glVertex3f(4.9f - couchDepth * 0.3f, seatHeight + backHeight, -1.5f);
-    glTexCoord2f(0.5f, 1.0f); glVertex3f(4.9f - couchDepth * 0.3f, seatHeight + backHeight, 1.5f);
-    glTexCoord2f(0.0f, 1.0f); glVertex3f(4.9f - couchDepth * 0.3f, seatHeight, 1.5f);
+
+    float xb1 = xBack + backTilt;   // top slightly forward for comfy angle
+    float xb2 = xBack;              // bottom exactly at seat back
+
+    // Backrest height
+    float y1 = seatHeight;
+    float y2 = seatHeight + backHeight;
+
+    // Front face (touching wall)
+    glNormal3f(0,0,-1);
+    glTexCoord2f(0,0); glVertex3f(xb2, y1, zLeft);
+    glTexCoord2f(1,0); glVertex3f(xb1, y2, zLeft);
+    glTexCoord2f(1,1); glVertex3f(xb1, y2, zRight);
+    glTexCoord2f(0,1); glVertex3f(xb2, y1, zRight);
+
+    // Back face
+    glNormal3f(0,0,1);
+    glTexCoord2f(0,0); glVertex3f(xb2+0.2f, y1, zLeft);
+    glTexCoord2f(1,0); glVertex3f(xb1+0.2f, y2, zLeft);
+    glTexCoord2f(1,1); glVertex3f(xb1+0.2f, y2, zRight);
+    glTexCoord2f(0,1); glVertex3f(xb2+0.2f, y1, zRight);
+
+    // Left side
+    glNormal3f(-1,0,0);
+    glTexCoord2f(0,0); glVertex3f(xb2,      y1, zLeft);
+    glTexCoord2f(0,1); glVertex3f(xb1,      y2, zLeft);
+    glTexCoord2f(1,1); glVertex3f(xb1+0.2f, y2, zLeft);
+    glTexCoord2f(1,0); glVertex3f(xb2+0.2f, y1, zLeft);
+
+    // Right side
+    glNormal3f(1,0,0);
+    glTexCoord2f(0,0); glVertex3f(xb2,      y1, zRight);
+    glTexCoord2f(0,1); glVertex3f(xb1,      y2, zRight);
+    glTexCoord2f(1,1); glVertex3f(xb1+0.2f, y2, zRight);
+    glTexCoord2f(1,0); glVertex3f(xb2+0.2f, y1, zRight);
+
     glEnd();
-    
-    // ===== ARMRESTS ===== (textured)
-    glBindTexture(GL_TEXTURE_2D, textureCouch);
-    glColor3f(1.0f, 1.0f, 1.0f);
+
+    // =======================
+    // ARMRESTS (thicker)
+    // =======================
     glBegin(GL_QUADS);
-    // Left armrest - outside face
-    glNormal3f(-1.0f, 0.0f, 0.0f);
-    glTexCoord2f(0.0f, 0.0f); glVertex3f(4.9f - couchDepth, seatHeight, -1.5f);
-    glTexCoord2f(1.0f, 0.0f); glVertex3f(4.9f - couchDepth, seatHeight, -1.5f - armWidth);
-    glTexCoord2f(1.0f, 1.0f); glVertex3f(4.9f - couchDepth, seatHeight + armHeight, -1.5f - armWidth);
-    glTexCoord2f(0.0f, 1.0f); glVertex3f(4.9f - couchDepth, seatHeight + armHeight, -1.5f);
-    
-    // Left armrest - top face
-    glNormal3f(0.0f, 1.0f, 0.0f);
-    glTexCoord2f(0.0f, 0.0f); glVertex3f(4.9f - couchDepth, seatHeight + armHeight, -1.5f - armWidth);
-    glTexCoord2f(1.0f, 0.0f); glVertex3f(4.9f - couchDepth * 0.5f, seatHeight + armHeight, -1.5f - armWidth);
-    glTexCoord2f(1.0f, 1.0f); glVertex3f(4.9f - couchDepth * 0.5f, seatHeight + armHeight, -1.5f);
-    glTexCoord2f(0.0f, 1.0f); glVertex3f(4.9f - couchDepth, seatHeight + armHeight, -1.5f);
-    
-    // Right armrest - outside face
-    glNormal3f(-1.0f, 0.0f, 0.0f);
-    glTexCoord2f(0.0f, 0.0f); glVertex3f(4.9f - couchDepth, seatHeight, 1.5f);
-    glTexCoord2f(1.0f, 0.0f); glVertex3f(4.9f - couchDepth, seatHeight, 1.5f + armWidth);
-    glTexCoord2f(1.0f, 1.0f); glVertex3f(4.9f - couchDepth, seatHeight + armHeight, 1.5f + armWidth);
-    glTexCoord2f(0.0f, 1.0f); glVertex3f(4.9f - couchDepth, seatHeight + armHeight, 1.5f);
-    
-    // Right armrest - top face
-    glNormal3f(0.0f, 1.0f, 0.0f);
-    glTexCoord2f(0.0f, 0.0f); glVertex3f(4.9f - couchDepth, seatHeight + armHeight, 1.5f + armWidth);
-    glTexCoord2f(1.0f, 0.0f); glVertex3f(4.9f - couchDepth * 0.5f, seatHeight + armHeight, 1.5f + armWidth);
-    glTexCoord2f(1.0f, 1.0f); glVertex3f(4.9f - couchDepth * 0.5f, seatHeight + armHeight, 1.5f);
-    glTexCoord2f(0.0f, 1.0f); glVertex3f(4.9f - couchDepth, seatHeight + armHeight, 1.5f);
+
+    float armX1 = xFront;
+    float armX2 = xFront - armWidth;
+
+    // Left armrest
+    glNormal3f(0,1,0); // top
+    glTexCoord2f(0,0); glVertex3f(armX2, seatHeight+armHeight, zLeft - armWidth);
+    glTexCoord2f(1,0); glVertex3f(armX1, seatHeight+armHeight, zLeft - armWidth);
+    glTexCoord2f(1,1); glVertex3f(armX1, seatHeight+armHeight, zLeft);
+    glTexCoord2f(0,1); glVertex3f(armX2, seatHeight+armHeight, zLeft);
+
+    // Front face
+    glNormal3f(0,0,-1);
+    glTexCoord2f(0,0); glVertex3f(armX2, seatHeight, zLeft - armWidth);
+    glTexCoord2f(1,0); glVertex3f(armX1, seatHeight, zLeft - armWidth);
+    glTexCoord2f(1,1); glVertex3f(armX1, seatHeight+armHeight, zLeft - armWidth);
+    glTexCoord2f(0,1); glVertex3f(armX2, seatHeight+armHeight, zLeft - armWidth);
+
+    // Right armrest (same mirrored)
+    glNormal3f(0,1,0);
+    glTexCoord2f(0,0); glVertex3f(armX2, seatHeight+armHeight, zRight + armWidth);
+    glTexCoord2f(1,0); glVertex3f(armX1, seatHeight+armHeight, zRight + armWidth);
+    glTexCoord2f(1,1); glVertex3f(armX1, seatHeight+armHeight, zRight);
+    glTexCoord2f(0,1); glVertex3f(armX2, seatHeight+armHeight, zRight);
+
     glEnd();
-    
-    // ===== COUCH LEGS ===== (wood)
-    glBindTexture(GL_TEXTURE_2D, textureWood);
-    glColor3f(1.0f, 1.0f, 1.0f);
-    glBegin(GL_QUADS);
-    float legSize = 0.1f;
-    // Front left leg
-    glNormal3f(0.0f, 0.0f, 1.0f);
-    glTexCoord2f(0.0f, 0.0f); glVertex3f(4.9f, 0.0f, -1.5f);
-    glTexCoord2f(1.0f, 0.0f); glVertex3f(4.9f - legSize, 0.0f, -1.5f);
-    glTexCoord2f(1.0f, 1.0f); glVertex3f(4.9f - legSize, legSize, -1.5f - legSize);
-    glTexCoord2f(0.0f, 1.0f); glVertex3f(4.9f, legSize, -1.5f - legSize);
-    
-    // Front right leg
-    glTexCoord2f(0.0f, 0.0f); glVertex3f(4.9f, 0.0f, 1.5f);
-    glTexCoord2f(1.0f, 0.0f); glVertex3f(4.9f - legSize, 0.0f, 1.5f);
-    glTexCoord2f(1.0f, 1.0f); glVertex3f(4.9f - legSize, legSize, 1.5f + legSize);
-    glTexCoord2f(0.0f, 1.0f); glVertex3f(4.9f, legSize, 1.5f + legSize);
-    
-    // Back left leg
-    glTexCoord2f(0.0f, 0.0f); glVertex3f(4.9f - couchDepth, 0.0f, -1.5f);
-    glTexCoord2f(1.0f, 0.0f); glVertex3f(4.9f - couchDepth - legSize, 0.0f, -1.5f);
-    glTexCoord2f(1.0f, 1.0f); glVertex3f(4.9f - couchDepth - legSize, legSize, -1.5f - legSize);
-    glTexCoord2f(0.0f, 1.0f); glVertex3f(4.9f - couchDepth, legSize, -1.5f - legSize);
-    
-    // Back right leg
-    glTexCoord2f(0.0f, 0.0f); glVertex3f(4.9f - couchDepth, 0.0f, 1.5f);
-    glTexCoord2f(1.0f, 0.0f); glVertex3f(4.9f - couchDepth - legSize, 0.0f, 1.5f);
-    glTexCoord2f(1.0f, 1.0f); glVertex3f(4.9f - couchDepth - legSize, legSize, 1.5f + legSize);
-    glTexCoord2f(0.0f, 1.0f); glVertex3f(4.9f - couchDepth, legSize, 1.5f + legSize);
-    glEnd();
-    
-    // ===== DECORATIVE PILLOWS =====
-    glBindTexture(GL_TEXTURE_2D, textureCouch);
-    glColor3f(0.9f, 0.9f, 0.9f); // Lighter shade for pillows
-    
-    // Three pillows arranged on backrest
-    for(int i = 0; i < 3; i++) {
-        float zPos = -0.8f + i * 0.8f;
-        
-        glPushMatrix();
-        glTranslatef(4.9f - couchDepth * 0.5f, seatHeight + 0.4f, zPos);
-        glRotatef(15.0f, 1.0f, 0.0f, 0.0f); // Slight tilt
-        glScalef(0.35f, 0.35f, 0.35f);
-        glutSolidCube(1.0f);
-        glPopMatrix();
-    }
+    glPopMatrix();
+
 }
+
 
 void drawAxes() {
     glDisable(GL_LIGHTING);
